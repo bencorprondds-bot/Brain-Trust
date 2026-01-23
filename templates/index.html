@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Brain Trust - AI Personas</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;600&display=swap"
+        rel="stylesheet">
+</head>
+
+<body>
+    <div class="container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="logo">
+                <h1 class="neon-text">BRAIN<br>TRUST</h1>
+                <p class="tagline">NEURAL INTERFACE v2.0</p>
+            </div>
+
+            <div class="agents">
+                <div class="agents-header">
+                    <h2>SELECT AGENT</h2>
+                    <button class="manage-btn" onclick="openManageModal()">⚙️</button>
+                </div>
+                <!-- Navigation -->
+                <div class="nav-buttons" style="margin-bottom: 20px;">
+                    <button id="nav-chat" class="active" onclick="switchView('chat')">💬 CHAT</button>
+                    <button id="nav-mission" onclick="switchView('mission')">🚀 MISSION CONTROL</button>
+                </div>
+                <div id="agents-list">
+                    <!-- Agents loaded dynamically -->
+                </div>
+            </div>
+
+            <div class="status">
+                <div class="status-indicator">
+                    <span class="pulse"></span>
+                    <span>SYSTEM ONLINE</span>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Chat Area -->
+        <main class="chat-container">
+            <div class="chat-header">
+                <h2 id="current-agent">Loading...</h2>
+                <span class="agent-subtitle" id="current-role">Initializing</span>
+            </div>
+
+            <div class="chat-messages" id="chat-messages">
+                <div class="system-message">
+                    <span class="system-icon">⚡</span>
+                    <p>Neural interface initialized. Select an agent and begin transmission.</p>
+                </div>
+            </div>
+
+            <div class="chat-input-container">
+                <form id="chat-form">
+                    <input type="text" id="message-input" placeholder="Enter your query..." autocomplete="off" required>
+                    <button type="submit" class="send-btn">
+                        <span>TRANSMIT</span>
+                        <span class="send-icon">→</span>
+                    </button>
+                </form>
+            </div>
+        </main>
+
+        <!-- Mission Control Area -->
+        <main id="mission-control" class="mission-container hidden">
+            <div class="mission-header">
+                <h2>MISSION CONTROL CENTER</h2>
+                <div class="mission-stats">
+                    <span class="stat-item">ACTIVE: <span id="active-jobs-count" class="neon-text">0</span></span>
+                </div>
+            </div>
+
+            <div class="mission-actions">
+                <button class="launch-btn" onclick="openLaunchModal()">+ LAUNCH NEW MISSION</button>
+            </div>
+
+            <div id="jobs-grid" class="jobs-grid">
+                <!-- Jobs loaded here -->
+            </div>
+        </main>
+    </div>
+
+    <!-- Agent Management Modal -->
+    <div id="manage-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>⚙️ AGENT MANAGEMENT</h2>
+                <button class="close-btn" onclick="closeManageModal()">×</button>
+            </div>
+
+            <div class="modal-body">
+                <div class="agents-manager">
+                    <div id="agents-manager-list">
+                        <!-- Agent cards loaded dynamically -->
+                    </div>
+                    <button class="add-agent-btn" onclick="showAgentForm()">+ NEW AGENT</button>
+                </div>
+
+                <!-- Agent Form (hidden by default) -->
+                <div id="agent-form" class="agent-form hidden">
+                    <h3 id="form-title">Create New Agent</h3>
+                    <form id="agent-edit-form" onsubmit="saveAgent(event)">
+                        <input type="hidden" id="edit-agent-id">
+
+                        <label>Agent Name</label>
+                        <input type="text" id="agent-name" placeholder="e.g., ARIA" required>
+
+                        <label>Role/Description</label>
+                        <input type="text" id="agent-role" placeholder="e.g., Strategic CEO" required>
+
+                        <label>Icon (emoji or symbol)</label>
+                        <input type="text" id="agent-icon" placeholder="e.g., ◆" maxlength="2">
+
+                        <label>Color</label>
+                        <select id="agent-color" required>
+                            <option value="blue">Blue (#00d9ff)</option>
+                            <option value="green">Green (#00ff41)</option>
+                            <option value="gold">Gold (#ffd700)</option>
+                            <option value="purple">Purple (#a855f7)</option>
+                            <option value="pink">Pink (#ec4899)</option>
+                            <option value="red">Red (#ef4444)</option>
+                            <option value="cyan">Cyan (#06b6d4)</option>
+                        </select>
+
+                        <label>API Provider</label>
+                        <select id="agent-api-provider" required>
+                            <option value="gemini">Google Gemini</option>
+                            <option value="claude">Anthropic Claude</option>
+                        </select>
+
+                        <label>Model</label>
+                        <select id="agent-model" required>
+                            <optgroup label="Gemini Models">
+                                <option value="gemini-2.5-pro">Gemini 2.5 Pro</option>
+                                <option value="gemini-exp-1206">Gemini 3 Experimental (1206)</option>
+                                <option value="gemini-2.0-flash-exp">Gemini 2.0 Flash (Experimental)</option>
+                                <option value="gemini-1.5-pro-latest">Gemini 1.5 Pro</option>
+                                <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
+                            </optgroup>
+                            <optgroup label="Claude Models">
+                                <option value="claude-sonnet-4-20250514">Claude 4.5 Sonnet</option>
+                                <option value="claude-3-5-sonnet-20241022">Claude 3.5 Sonnet</option>
+                                <option value="claude-3-5-haiku-20241022">Claude 3.5 Haiku</option>
+                                <option value="claude-3-opus-20240229">Claude 3 Opus</option>
+                            </optgroup>
+                        </select>
+
+                        <label>System Prompt</label>
+                        <textarea id="agent-system-prompt" rows="6"
+                            placeholder="Define the agent's personality and behavior..." required></textarea>
+
+                        <div class="form-actions">
+                            <button type="button" onclick="cancelAgentForm()">Cancel</button>
+                            <button type="submit">Save Agent</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Launch Mission Modal -->
+    <div id="launch-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>🚀 LAUNCH MISSION</h2>
+                <button class="close-btn" onclick="closeLaunchModal()">×</button>
+            </div>
+            <div class="modal-body">
+                <form id="launch-form" onsubmit="launchMission(event)">
+                    <label>Mission Objective</label>
+                    <textarea id="mission-objective" rows="4" placeholder="Describe the task for the Brain Trust..." required></textarea>
+                    
+                    <label>Select Agents (Optional Order)</label>
+                    <div class="agent-select-list" id="mission-agent-select">
+                        <!-- Checkboxes populated dynamically -->
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="button" onclick="closeLaunchModal()">Cancel</button>
+                        <button type="submit">Initialize Sequence</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+
+</html>

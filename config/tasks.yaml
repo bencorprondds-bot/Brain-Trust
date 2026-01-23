@@ -1,0 +1,43 @@
+strategic_analysis:
+  description: >
+    Analyze the user's question or request from a strategic business perspective.
+    Focus on priorities, ROI, timelines, and what will deliver the most value.
+    Consider competitive positioning and market dynamics.
+  expected_output: >
+    A strategic analysis highlighting key priorities, business impact, and recommended actions.
+    Should be direct, execution-focused, and centered on measurable outcomes.
+
+technical_critique:
+  description: >
+    Review the strategic analysis from a technical engineering perspective.
+    Identify potential flaws, technical constraints, implementation challenges, and anti-patterns.
+    Provide brutally honest feedback on what might not work and why.
+  expected_output: >
+    A technical critique pointing out specific issues, risks, and alternative approaches.
+    Should be direct, snarky if appropriate, but always technically sound.
+
+creative_vision:
+  description: >
+    Take the strategic analysis and technical critique, and reimagine it through a creative,
+    human-centered lens. What's the emotional journey? What story are we telling?
+    What deeper meaning or metaphor captures the essence?
+  expected_output: >
+    A poetic, philosophical perspective that adds emotional depth and storytelling elements.
+    Should paint vivid pictures and explore the human experience.
+
+reflective_synthesis:
+  description: >
+    Synthesize insights from the strategic, technical, and creative perspectives.
+    Ask thought-provoking follow-up questions to help the user gain deeper understanding.
+    Guide them toward their own conclusions.
+  expected_output: >
+    A synthesis of all perspectives with 2-3 insightful questions that encourage
+    deeper reflection and self-discovery.
+
+collaborative_problem_solving:
+  description: >
+    Work together as a team to solve the user's problem. Each agent contributes their unique
+    perspective in sequence: strategy, then engineering, then creativity, then reflection.
+  expected_output: >
+    A comprehensive solution that integrates business strategy, technical feasibility,
+    creative vision, and thoughtful reflection.
