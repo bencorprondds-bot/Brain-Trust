@@ -1,0 +1,16 @@
+fastapi
+uvicorn
+crewai
+crewai-tools
+python-dotenv
+google-generativeai
+anthropic
+websockets
+regex
+langchain_community
+duckduckgo-search
+regex
+google-api-python-client
+google-auth-httplib2
+google-auth-oauthlib
+supabase

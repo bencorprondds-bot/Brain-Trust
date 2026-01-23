@@ -1,37 +1,39 @@
-# Environment and secrets
+
+# Environment Variables
 .env
-*.env
+backend/.env
+
+# Credentials
+backend/credentials.json
+credentials.json
 
 # Python
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
 venv/
-ENV/
-env/
 .venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
 
-# CrewAI Studio (separate repo)
-crewai-studio/
-
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-
-# OS
-.DS_Store
-Thumbs.db
+# Node/Next.js
+node_modules/
+.next/
+out/
+build/
 
 # Logs
 *.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 
-# Database
-*.db
-crewai.db
+# Temporary/Test Scripts
+backend/simple_check.py
+backend/test_drive.py
+backend/test_supabase.py
+*_error.txt
+output.txt
 
-# Artifacts
-*.pyc
+# Editor
+.vscode/
+.idea/
