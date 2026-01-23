@@ -8,8 +8,9 @@ anthropic
 websockets
 regex
 langchain_community
+langchain_google_genai
+langchain_anthropic
 duckduckgo-search
-regex
 google-api-python-client
 google-auth-httplib2
 google-auth-oauthlib

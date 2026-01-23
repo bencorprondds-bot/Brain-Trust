@@ -18,7 +18,7 @@ class WorkflowParser:
     def parse_graph(self) -> Crew:
         """
         Main entry point. 
-        1. Creates Agents
+        1. Creates Agents (with TELOS context from ~/.pai/)
         2. Creates Tasks (and links them)
         3. Returns a Crew object ready for kickoff()
         """
@@ -69,18 +69,43 @@ class WorkflowParser:
         return crew
 
     def _create_agent(self, data: Dict) -> Agent:
-        """Hydrates a CrewAI Agent from Node Data"""
+        """
+        Hydrates a CrewAI Agent from Node Data with TELOS context and script tools.
+        
+        Loads personal context from ~/.pai/context/ and tools from ~/.pai/skills/
+        
+        Args:
+            data: Node data from React Flow
+        """
         import os
         from langchain_google_genai import ChatGoogleGenerativeAI
         from langchain_anthropic import ChatAnthropic
+        from app.core.context_loader import ContextLoader
+        from app.tools.script_execution_tool import ScriptRegistry
 
+        # Load TELOS context
+        loader = ContextLoader()
+        try:
+            context = loader.load_context()
+        except FileNotFoundError as e:
+            # Fallback: operate without TELOS (log warning)
+            print(f"WARNING: {e}. Agent will operate without user context.")
+            context = None
+        
+        # Build base backstory
+        base_backstory = data.get('backstory', 'An AI assistant.')
+        
+        # Inject TELOS if available
+        if context:
+            enhanced_backstory = loader.inject_into_prompt(base_backstory, context)
+        else:
+            enhanced_backstory = base_backstory
+
+        # Configure LLM
         model_name = data.get('model', 'gemini-1.5-pro')
         llm = None
-        tools = []
 
         if 'gemini' in model_name:
-            # Map simplified names if needed, or pass directly
-            # CrewAI often needs explicit LLM objects for non-OpenAI
             llm = ChatGoogleGenerativeAI(
                 model=model_name,
                 google_api_key=os.getenv("GEMINI_API_KEY"),
@@ -93,6 +118,11 @@ class WorkflowParser:
                 temperature=0.7
             )
         
+        # Load script tools
+        registry = ScriptRegistry()
+        tools = registry.get_tools()
+        
+        # Add role-specific tools
         if 'librarian' in data.get('role', '').lower():
             from app.tools.drive_tool import DriveListTool, DriveReadTool, DriveWriteTool
             tools.extend([DriveListTool(), DriveReadTool(), DriveWriteTool()])
@@ -100,9 +130,9 @@ class WorkflowParser:
         return Agent(
             role=data.get('role', 'Assistant'),
             goal=data.get('goal', 'Help the user'),
-            backstory=data.get('backstory', 'An AI assistant.'),
+            backstory=enhanced_backstory,  # Now includes TELOS context
             allow_delegation=False,
-            tools=tools,
+            tools=tools,  # Includes script tools + role-specific tools
             verbose=True,
             llm=llm
         )
