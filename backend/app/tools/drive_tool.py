@@ -144,25 +144,36 @@ class DriveAuth:
         return creds
 
 class DriveListInput(BaseModel):
-    folder_id: str = Field(description="The ID of the folder to list files from. Use 'root' or 'all' to list all accessible files and folders.")
+    folder_id: str = Field(
+        description="Folder to list files from. Can be a folder name (e.g., 'reference_docs', 'in_development', 'inbox') or a folder ID. Use 'root' or 'all' to list all accessible files."
+    )
 
 class DriveListTool(BaseTool):
     name: str = "Google Drive Lister"
-    description: str = "Lists files and folders in a specific Google Drive folder. Use folder_id='root' or 'all' to see all accessible files."
+    description: str = """Lists files and folders in a specific Google Drive folder.
+
+    Folder names supported: inbox, in_development, ready_for_review, published,
+    voice_library, reference_docs, agent_prompts, workflows, images, life_with_ai
+
+    Use folder_id='root' or 'all' to see all accessible files."""
     args_schema: Type[BaseModel] = DriveListInput
 
     def _run(self, folder_id: str = 'root') -> str:
         try:
             creds = DriveAuth.authenticate()
             service = build('drive', 'v3', credentials=creds)
-            
+
             # For service accounts, 'root' means "list all shared files"
             if folder_id.lower() in ['root', 'all', '']:
                 # List all files accessible to service account
                 query = "trashed = false"
             else:
+                # Try to resolve folder name to ID first
+                resolved_id = resolve_folder(folder_id)
+                actual_folder_id = resolved_id if resolved_id else folder_id
+
                 # List files in specific folder
-                query = f"'{folder_id}' in parents and trashed = false"
+                query = f"'{actual_folder_id}' in parents and trashed = false"
             
             results = service.files().list(
                 q=query,
