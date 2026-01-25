@@ -135,8 +135,17 @@ class WorkflowParser:
         
         # Add role-specific tools
         if 'librarian' in data.get('role', '').lower():
-            from app.tools.drive_tool import DriveListTool, DriveReadTool, DriveWriteTool
-            tools.extend([DriveListTool(), DriveReadTool(), DriveWriteTool()])
+            from app.tools.drive_tool import (
+                DriveListTool, DriveReadTool, DriveWriteTool,
+                DriveMoveTool, DriveFindTool
+            )
+            tools.extend([
+                DriveListTool(),      # List files in folders
+                DriveReadTool(),      # Read document content
+                DriveWriteTool(),     # Create new documents (via template copy)
+                DriveMoveTool(),      # Move files through editorial pipeline
+                DriveFindTool(),      # Search for files by name/content
+            ])
 
         return Agent(
             role=data.get('role', 'Assistant'),
