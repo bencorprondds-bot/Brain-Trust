@@ -12,6 +12,11 @@ Brain Trust is a **personal empowerment tool**, not a SaaS product. It's designe
 
 This is YOUR AI assistant that knows YOUR mission, uses YOUR tools, and remembers YOUR work.
 
+## 🚨 System Capabilities (Read First)
+> [!IMPORTANT]
+> **AI Agents:** Before starting any session, you **MUST** read [SYSTEM_CAPABILITIES.md](SYSTEM_CAPABILITIES.md) to understand verified integrations and available tools.
+> **Human User:** Update that file when adding new features.
+
 ## Quick Start
 
 ### 1. Set Up Your Personal Context

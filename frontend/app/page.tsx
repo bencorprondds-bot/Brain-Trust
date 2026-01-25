@@ -278,28 +278,12 @@ export default function Home() {
       <div className="absolute top-4 left-4 z-30 flex flex-col gap-4 pointer-events-auto">
         <div>
           <h1 className="text-2xl font-bold tracking-tight bg-gradient-to-r from-cyan-400 to-blue-600 bg-clip-text text-transparent">
-            BRAIN TRUST v2.1
+            Brain Trust v2.5
           </h1>
           <p className="text-xs text-zinc-500 font-mono tracking-widest">INTERACTIVE WORKFLOW ENGINE</p>
         </div>
 
-        <Button
-          onClick={runWorkflow}
-          disabled={isRunning}
-          className="bg-cyan-600 hover:bg-cyan-500 text-white border border-cyan-400/20 shadow-[0_0_20px_rgba(6,182,212,0.3)] transition-all"
-        >
-          {isRunning ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              EXECUTING CREW...
-            </>
-          ) : (
-            <>
-              <Play className="mr-2 h-4 w-4 fill-current" />
-              RUN WORKFLOW
-            </>
-          )}
-        </Button>
+
       </div>
 
       {/* Fetch Bin - Absolute Positioned */}

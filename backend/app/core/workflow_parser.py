@@ -64,7 +64,9 @@ class WorkflowParser:
             agents=list(self.agents_map.values()),
             tasks=tasks_list,
             verbose=True, # Important for websocket streaming later
-            process=Process.sequential 
+            process=Process.sequential,
+            memory=False, # Disable ChromaDB/Embedding overhead to prevent crashes
+            embedder=None 
         )
         return crew
 

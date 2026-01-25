@@ -59,7 +59,11 @@ class ScriptExecutionTool(BaseTool):
         try:
             # Build command
             script_path_str = str(self.script_path)
-            if script_path_str.endswith('.py'):
+            
+            # Case-insensitive check for python scripts
+            is_python = script_path_str.lower().endswith('.py')
+            
+            if is_python:
                 cmd = [sys.executable, script_path_str]
             else:
                 cmd = [script_path_str]
@@ -79,6 +83,29 @@ class ScriptExecutionTool(BaseTool):
             )
             
             return result.stdout.strip()
+            
+        except OSError as e:
+            # Handle [WinError 193] %1 is not a valid Win32 application
+            # This happens when trying to execute a script directly that Windows doesn't recognize
+            if getattr(e, 'winerror', 0) == 193 or e.errno == 8: # errno 8 is Exec format error on Linux
+                try:
+                    # Fallback: Try to run with python interpreter
+                    cmd = [sys.executable, str(self.script_path)]
+                    for key, value in kwargs.items():
+                        cmd.append(str(value))
+                        
+                    result = subprocess.run(
+                        cmd,
+                        capture_output=True,
+                        text=True,
+                        timeout=self.timeout,
+                        check=True,
+                        env=os.environ.copy()
+                    )
+                    return result.stdout.strip()
+                except Exception as fallback_e:
+                    return f"ERROR: Failed to run script directly and fallback failed: {str(e)} -> {str(fallback_e)}"
+            return f"ERROR: OS Error execution failed: {str(e)}"
             
         except subprocess.TimeoutExpired:
             return f"ERROR: Script exceeded {self.timeout}s timeout"

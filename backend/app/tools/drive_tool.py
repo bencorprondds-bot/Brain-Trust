@@ -119,27 +119,50 @@ class DriveWriteTool(BaseTool):
 
     def _run(self, title: str, content: str) -> str:
         try:
+            from googleapiclient.http import MediaIoBaseUpload
+            import io
+            
             creds = DriveAuth.authenticate()
             docs_service = build('docs', 'v1', credentials=creds)
             drive_service = build('drive', 'v3', credentials=creds)
             
-            # 1. Create blank doc
-            doc = docs_service.documents().create(body={'title': title}).execute()
-            doc_id = doc.get('documentId')
+            # Target Folder ID for '02_In_Development'
+            TARGET_FOLDER_ID = '1fKYixOC9aDcm-XHAIHhfGj3rKlRg5b-i'
             
-            # 2. Insert content
-            requests = [
-                {
-                    'insertText': {
-                        'location': {
-                            'index': 1,
-                        },
-                        'text': content
+            # 1. Prepare Metadata
+            file_metadata = {
+                'name': title,
+                'mimeType': 'application/vnd.google-apps.document',
+                'parents': [TARGET_FOLDER_ID]
+            }
+            
+            # 2. Create via Upload Bypass
+            # Uploading a file (even empty) acts differently than creating a native doc from scratch
+            media = MediaIoBaseUpload(io.BytesIO(b' '), mimetype='text/plain', resumable=True)
+            
+            doc = drive_service.files().create(
+                body=file_metadata,
+                media_body=media,
+                fields='id'
+            ).execute()
+            
+            doc_id = doc.get('id')
+            
+            # 3. Insert content (if any)
+            if content:
+                requests = [
+                    {
+                        'insertText': {
+                            'location': {
+                                'index': 1,
+                            },
+                            'text': content
+                        }
                     }
-                }
-            ]
-            docs_service.documents().batchUpdate(documentId=doc_id, body={'requests': requests}).execute()
+                ]
+                docs_service.documents().batchUpdate(documentId=doc_id, body={'requests': requests}).execute()
             
-            return f"Successfully created document '{title}' (ID: {doc_id})"
+            return f"Successfully created document '{title}' in 'In_Development' (ID: {doc_id})"
         except Exception as e:
             return f"Error creating doc: {str(e)}"
+
