@@ -35,7 +35,8 @@ const initialNodes = [
       goal: 'Find files in "Reference_Docs/Characters/" (specifically Oren) and read them to provide context.',
       backstory: 'The meticulous guardian of the Drive.',
       status: 'idle',
-      model: 'gemini-2.0-flash'
+      model: 'gemini-2.0-flash',
+      files: [] as string[]
     },
   },
   {
@@ -48,7 +49,8 @@ const initialNodes = [
       goal: 'Write a scene where Oren discovers the Ghost code, using the context provided.',
       backstory: 'A creative fiction writer.',
       status: 'idle',
-      model: 'gemini-2.0-flash'
+      model: 'gemini-2.0-flash',
+      files: [] as string[]
     },
   },
   {
@@ -61,7 +63,8 @@ const initialNodes = [
       goal: 'Review the scene for structure and pacing.',
       backstory: 'A critical editor focused on story arcs.',
       status: 'idle',
-      model: 'claude-3-5-sonnet'
+      model: 'claude-3-5-sonnet',
+      files: [] as string[]
     },
   },
 ];
@@ -167,7 +170,7 @@ export default function Home() {
               const inner = rawContent.slice(1, -1);
               if (inner.trim()) {
                 // Split by comma checking for quotes
-                files = inner.split(',').map(s => s.trim().replace(/^['"]|['"]$/g, '')).filter(Boolean);
+                files = inner.split(',').map((s: string) => s.trim().replace(/^['"]|['"]$/g, '')).filter(Boolean);
               }
             } else {
               // Fallback line based or single item
