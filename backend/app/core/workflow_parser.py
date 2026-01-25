@@ -102,7 +102,7 @@ class WorkflowParser:
             enhanced_backstory = base_backstory
 
         # Configure LLM
-        model_name = data.get('model', 'gemini-1.5-pro')
+        model_name = data.get('model', 'gemini-2.0-flash')
         llm = None
 
         if 'gemini' in model_name:
@@ -112,8 +112,17 @@ class WorkflowParser:
                 temperature=0.7
             )
         elif 'claude' in model_name:
+            # Map friendly names to actual Anthropic Model IDs
+            # Updated Jan 2025: Using current model IDs
+            if "3-5" in model_name or "3.5" in model_name or "sonnet" in model_name.lower():
+                ant_model = "claude-sonnet-4-20250514"
+            elif "opus" in model_name:
+                ant_model = "claude-opus-4-20250514"
+            else:
+                ant_model = "claude-sonnet-4-20250514"
+            
             llm = ChatAnthropic(
-                model_name="claude-3-opus-20240229" if "opus" in model_name else "claude-3-sonnet-20240229",
+                model_name=ant_model,
                 api_key=os.getenv("ANTHROPIC_API_KEY"),
                 temperature=0.7
             )

@@ -3,6 +3,7 @@ from pydantic import BaseModel
 from typing import Dict, Any, List, Optional
 from app.core.workflow_parser import WorkflowParser
 from app.core.auth import verify_api_key
+from crewai import Task
 import time
 
 router = APIRouter()
@@ -67,6 +68,60 @@ async def run_workflow_endpoint(workflow: WorkflowRequest):
             "duration": duration
         }
             
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+class ChatRequest(BaseModel):
+    message: str
+    agent_config: Dict[str, Any]
+    context: Optional[str] = None
+
+@router.post("/chat", dependencies=[Security(verify_api_key)])
+async def chat_endpoint(request: ChatRequest):
+    """
+    Single-turn chat with a temporary agent.
+    Used for the interactive "Chat with Agents" feature in UI.
+    """
+    try:
+        # We use a mini-parser to hydrate just this one agent
+        # Creating a dummy workflow wrapper
+        dummy_workflow = {
+            "nodes": [
+                {
+                    "id": "chat_agent",
+                    "type": "agentNode",
+                    "data": request.agent_config
+                }
+            ],
+            "edges": []
+        }
+        
+        parser = WorkflowParser(dummy_workflow)
+        
+        # Hydrate agent
+        crew = parser.parse_graph()
+        agent = crew.agents[0]
+        
+        # Add context if provided
+        prompt = request.message
+        if request.context:
+            prompt = f"CONTEXT:\n{request.context}\n\nUSER MESSAGE:\n{request.message}"
+            
+        # Inject instructions for file fetching visualization
+        prompt += "\n\nSYSTEM INSTRUCTION: If you use any tools to find, read, or list files, you MUST list the absolute paths of those files at the very end of your response in this exact format:\n<FETCHED_FILES>['path/to/file1', 'path/to/file2']</FETCHED_FILES>\nOnly include files you successfully found or read."
+            
+        # Execute single task
+        # Note: execute_task returns a TaskOutput string
+        response = agent.execute_task(
+            Task(
+                description=prompt,
+                expected_output="A helpful response.",
+                agent=agent
+            )
+        )
+        
+        return {"response": str(response)}
+        
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

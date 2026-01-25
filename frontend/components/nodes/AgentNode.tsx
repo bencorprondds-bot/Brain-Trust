@@ -18,6 +18,7 @@ interface AgentData {
     status: AgentStatus;
     currentTool?: string;
     model: string;
+    files?: string[];
 }
 
 const AgentNode = ({ data, selected }: NodeProps<AgentData>) => {
@@ -106,6 +107,18 @@ const AgentNode = ({ data, selected }: NodeProps<AgentData>) => {
                     position={Position.Bottom}
                     className="!bg-cyan-500 !w-3 !h-3 !border-none"
                 />
+
+                {/* File Context List - Floating above */}
+                {data.files && data.files.length > 0 && (
+                    <div className="absolute bottom-full mb-3 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1 w-max max-w-[220px] animate-in slide-in-from-bottom-2 fade-in duration-500 pointer-events-none">
+                        <span className="text-[9px] text-cyan-500/70 font-mono uppercase tracking-widest mb-0.5">Context Found</span>
+                        {data.files.map((f, i) => (
+                            <div key={i} className="bg-cyan-950/90 backdrop-blur border border-cyan-500/40 px-2 py-1 rounded text-[10px] font-bold text-cyan-100 shadow-[0_0_10px_rgba(6,182,212,0.2)] truncate max-w-full">
+                                {f.split(/[/\\]/).pop()}
+                            </div>
+                        ))}
+                    </div>
+                )}
             </Card>
         </div>
     );

@@ -22,6 +22,8 @@ class ScriptMetadata(BaseModel):
     script_path: Path
 
 
+import sys
+
 class ScriptExecutionTool(BaseTool):
     """
     Generic tool that executes a script from ~/.pai/skills/
@@ -56,7 +58,11 @@ class ScriptExecutionTool(BaseTool):
         """
         try:
             # Build command
-            cmd = [str(self.script_path)]
+            script_path_str = str(self.script_path)
+            if script_path_str.endswith('.py'):
+                cmd = [sys.executable, script_path_str]
+            else:
+                cmd = [script_path_str]
             
             # Append arguments (assumes positional args in order)
             for key, value in kwargs.items():

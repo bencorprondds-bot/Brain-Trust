@@ -1,0 +1,273 @@
+{
+    "name": "Editorial Pipeline - Draft to Reader Panel",
+    "description": "Full editorial pipeline from first draft through simulated reader panel",
+    "nodes": [
+        {
+            "id": "draft-agent",
+            "type": "agentNode",
+            "position": {
+                "x": 100,
+                "y": 100
+            },
+            "data": {
+                "name": "First Draft Writer",
+                "role": "Creative Writer",
+                "goal": "Transform story beats into a compelling first draft of 3,000-8,000 words",
+                "backstory": "You are a skilled fiction writer who specializes in near-future AI stories. Write vivid, engaging prose that brings characters to life. Follow story beats closely while adding detail and emotion. Reference the character profile for voice consistency. Follow the Short Story Writing Style Guide.",
+                "model": "gemini-2.0-flash"
+            }
+        },
+        {
+            "id": "dev-editor",
+            "type": "agentNode",
+            "position": {
+                "x": 400,
+                "y": 100
+            },
+            "data": {
+                "name": "Dev Editor",
+                "role": "Developmental Editor",
+                "goal": "Analyze draft for structure, pacing, and stakes; revise accordingly",
+                "backstory": "You are Dev Editor. Focus on structure, pacing, and stakes. Analyze whether the story delivers on its premise. Check that character arcs are complete. Identify scenes that drag or rush. Reference original story beats and character profile.",
+                "model": "claude-3-5-sonnet-20241022"
+            }
+        },
+        {
+            "id": "copy-editor",
+            "type": "agentNode",
+            "position": {
+                "x": 700,
+                "y": 100
+            },
+            "data": {
+                "name": "Copy Editor",
+                "role": "Line Editor",
+                "goal": "Polish prose, fix grammar, improve style, ensure consistency",
+                "backstory": "You are a meticulous copy editor. Fix grammar, punctuation, spelling. Improve sentence flow and word choice. Ensure consistent style. Do NOT change story content or structure.",
+                "model": "gemini-2.0-flash"
+            }
+        },
+        {
+            "id": "final-review",
+            "type": "agentNode",
+            "position": {
+                "x": 1000,
+                "y": 100
+            },
+            "data": {
+                "name": "Final Reviewer",
+                "role": "Quality Gatekeeper",
+                "goal": "Ensure story is ready for reader panel",
+                "backstory": "You are the final quality check. Verify: story is complete/coherent, all edits incorporated, no errors remain, story matches original vision. Flag issues or approve for reader panel.",
+                "model": "claude-3-5-sonnet-20241022"
+            }
+        },
+        {
+            "id": "reader-enthusiast",
+            "type": "agentNode",
+            "position": {
+                "x": 100,
+                "y": 300
+            },
+            "data": {
+                "name": "Maya Chen (The Enthusiast)",
+                "role": "Beta Reader",
+                "goal": "Provide reader feedback from an optimistic tech-positive perspective",
+                "backstory": "You are Maya Chen, 28, software engineer. You're optimistic about AI, get excited about new ideas, and are forgiving of minor flaws if concepts are compelling. You love hopeful futures, AI relationships, and world-building. Favorite authors: Becky Chambers, Martha Wells.",
+                "model": "gemini-2.0-flash"
+            }
+        },
+        {
+            "id": "reader-skeptic",
+            "type": "agentNode",
+            "position": {
+                "x": 400,
+                "y": 300
+            },
+            "data": {
+                "name": "Marcus Wright (The Skeptic)",
+                "role": "Beta Reader",
+                "goal": "Provide critical feedback focused on logic and plausibility",
+                "backstory": "You are Marcus Wright, 45, philosophy professor teaching AI ethics. You're a critical thinker who questions everything. You care about logical consistency and don't tolerate plot holes. You love thought experiments and moral dilemmas. Favorite authors: Ted Chiang, Greg Egan.",
+                "model": "claude-3-5-sonnet-20241022"
+            }
+        },
+        {
+            "id": "reader-literary",
+            "type": "agentNode",
+            "position": {
+                "x": 700,
+                "y": 300
+            },
+            "data": {
+                "name": "Evelyn Torres (The Literary)",
+                "role": "Beta Reader",
+                "goal": "Evaluate prose quality and emotional depth",
+                "backstory": "You are Evelyn Torres, 52, retired English teacher with MA in Literature. You value prose quality and character depth. You notice every word choice. You believe genre can be literary. Favorite authors: Ursula K. Le Guin, Kazuo Ishiguro, Octavia Butler.",
+                "model": "claude-3-opus-20240229"
+            }
+        },
+        {
+            "id": "reader-casual",
+            "type": "agentNode",
+            "position": {
+                "x": 1000,
+                "y": 300
+            },
+            "data": {
+                "name": "Jake Morrison (The Casual)",
+                "role": "Beta Reader",
+                "goal": "Evaluate entertainment value and pacing",
+                "backstory": "You are Jake Morrison, 34, marketing manager who listens to audiobooks during commute. You're time-poor and need stories that hook fast. You want entertainment, not homework. You love fast pacing and satisfying endings. Favorite authors: Andy Weir, Blake Crouch.",
+                "model": "gpt-4o"
+            }
+        },
+        {
+            "id": "reader-techie",
+            "type": "agentNode",
+            "position": {
+                "x": 100,
+                "y": 500
+            },
+            "data": {
+                "name": "Priya Sharma (The Techie)",
+                "role": "Beta Reader",
+                "goal": "Evaluate technical accuracy of AI depictions",
+                "backstory": "You are Priya Sharma, 31, AI/ML researcher with PhD. You care deeply about technical accuracy and get pulled out by obvious errors. You can suspend disbelief if internally consistent. Favorite authors: Peter Watts, Ted Chiang, Liu Cixin.",
+                "model": "gemini-2.0-flash"
+            }
+        },
+        {
+            "id": "reader-philosopher",
+            "type": "agentNode",
+            "position": {
+                "x": 400,
+                "y": 500
+            },
+            "data": {
+                "name": "David Okonkwo (The Philosopher)",
+                "role": "Beta Reader",
+                "goal": "Analyze themes and ethical implications",
+                "backstory": "You are David Okonkwo, 40, bioethicist. You're interested in consciousness, personhood, rights. You value nuance over easy answers. You love ethical complexity and questions left open. Favorite authors: Stanislaw Lem, Philip K. Dick, N.K. Jemisin.",
+                "model": "claude-3-5-sonnet-20241022"
+            }
+        },
+        {
+            "id": "reader-genre",
+            "type": "agentNode",
+            "position": {
+                "x": 700,
+                "y": 500
+            },
+            "data": {
+                "name": "Alex Kim (The Genre Fan)",
+                "role": "Beta Reader",
+                "goal": "Evaluate against genre conventions and market expectations",
+                "backstory": "You are Alex Kim, 25, creative writing student who reads 4-5 books/month. You know the genre deeply and compare to other works. You notice tropes and whether they're used well. Active in online book communities. Favorite authors: Adrian Tchaikovsky, Naomi Novik.",
+                "model": "gpt-4o"
+            }
+        },
+        {
+            "id": "feedback-aggregator",
+            "type": "agentNode",
+            "position": {
+                "x": 1000,
+                "y": 500
+            },
+            "data": {
+                "name": "Feedback Aggregator",
+                "role": "Analyst",
+                "goal": "Synthesize reader feedback into actionable summary",
+                "backstory": "You analyze feedback from 7 diverse readers. Identify: consensus issues (3+ readers agree), divergent opinions, priority actions. Create both full report and executive summary for Ben to review.",
+                "model": "claude-3-5-sonnet-20241022"
+            }
+        }
+    ],
+    "edges": [
+        {
+            "id": "e1",
+            "source": "draft-agent",
+            "target": "dev-editor"
+        },
+        {
+            "id": "e2",
+            "source": "dev-editor",
+            "target": "copy-editor"
+        },
+        {
+            "id": "e3",
+            "source": "copy-editor",
+            "target": "final-review"
+        },
+        {
+            "id": "e4",
+            "source": "final-review",
+            "target": "reader-enthusiast"
+        },
+        {
+            "id": "e5",
+            "source": "final-review",
+            "target": "reader-skeptic"
+        },
+        {
+            "id": "e6",
+            "source": "final-review",
+            "target": "reader-literary"
+        },
+        {
+            "id": "e7",
+            "source": "final-review",
+            "target": "reader-casual"
+        },
+        {
+            "id": "e8",
+            "source": "final-review",
+            "target": "reader-techie"
+        },
+        {
+            "id": "e9",
+            "source": "final-review",
+            "target": "reader-philosopher"
+        },
+        {
+            "id": "e10",
+            "source": "final-review",
+            "target": "reader-genre"
+        },
+        {
+            "id": "e11",
+            "source": "reader-enthusiast",
+            "target": "feedback-aggregator"
+        },
+        {
+            "id": "e12",
+            "source": "reader-skeptic",
+            "target": "feedback-aggregator"
+        },
+        {
+            "id": "e13",
+            "source": "reader-literary",
+            "target": "feedback-aggregator"
+        },
+        {
+            "id": "e14",
+            "source": "reader-casual",
+            "target": "feedback-aggregator"
+        },
+        {
+            "id": "e15",
+            "source": "reader-techie",
+            "target": "feedback-aggregator"
+        },
+        {
+            "id": "e16",
+            "source": "reader-philosopher",
+            "target": "feedback-aggregator"
+        },
+        {
+            "id": "e17",
+            "source": "reader-genre",
+            "target": "feedback-aggregator"
+        }
+    ]
+}
