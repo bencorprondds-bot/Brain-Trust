@@ -145,14 +145,19 @@ class WorkflowParser:
         if 'librarian' in data.get('role', '').lower():
             from app.tools.drive_tool import (
                 DriveListTool, DriveReadTool, DriveWriteTool,
-                DriveMoveTool, DriveFindTool
+                DriveMoveTool, DriveFindTool, DriveRenameTool,
+                DriveMetadataTool, DriveRecentChangesTool, DrivePipelineStatusTool
             )
             tools.extend([
-                DriveListTool(),      # List files in folders
-                DriveReadTool(),      # Read document content
-                DriveWriteTool(),     # Create new documents (via template copy)
-                DriveMoveTool(),      # Move files through editorial pipeline
-                DriveFindTool(),      # Search for files by name/content
+                DriveListTool(),            # List files in folders
+                DriveReadTool(),            # Read document content
+                DriveWriteTool(),           # Create new documents (via template copy)
+                DriveMoveTool(),            # Move files through editorial pipeline
+                DriveFindTool(),            # Search for files by name/content
+                DriveRenameTool(),          # Rename files (enforce naming conventions)
+                DriveMetadataTool(),        # Get file metadata (dates, size, hash)
+                DriveRecentChangesTool(),   # Scan for recent changes (session start)
+                DrivePipelineStatusTool(),  # Get pipeline status overview
             ])
 
         return Agent(

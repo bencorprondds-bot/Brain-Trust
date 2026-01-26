@@ -526,3 +526,276 @@ class DriveFindTool(BaseTool):
         except Exception as e:
             return f"Error searching files: {str(e)}"
 
+
+class DriveRenameInput(BaseModel):
+    file_id: str = Field(description="The ID of the file to rename")
+    new_name: str = Field(description="The new name for the file (without extension)")
+
+class DriveRenameTool(BaseTool):
+    name: str = "Google Drive File Renamer"
+    description: str = """Renames a file in Google Drive.
+
+    Use this to enforce naming conventions. The file extension is preserved automatically.
+
+    Naming conventions to follow:
+    - Character profiles: {Name}_Character_Profile
+    - Story beats: {Story_Title}_Beats
+    - Drafts: {Story_Title}_Draft_{N}
+    - Voice samples: {Character}_Voice_Sample
+    """
+    args_schema: Type[BaseModel] = DriveRenameInput
+
+    def _run(self, file_id: str, new_name: str) -> str:
+        try:
+            creds = DriveAuth.authenticate()
+            drive_service = build('drive', 'v3', credentials=creds)
+
+            # Get current file info
+            file_info = drive_service.files().get(
+                fileId=file_id,
+                fields='id, name, mimeType'
+            ).execute()
+
+            old_name = file_info.get('name', 'Unknown')
+
+            # Update the file name
+            drive_service.files().update(
+                fileId=file_id,
+                body={'name': new_name}
+            ).execute()
+
+            return f"Successfully renamed '{old_name}' to '{new_name}'"
+
+        except Exception as e:
+            return f"Error renaming file: {str(e)}"
+
+
+class DriveMetadataInput(BaseModel):
+    file_id: str = Field(description="The ID of the file to get metadata for")
+
+class DriveMetadataTool(BaseTool):
+    name: str = "Google Drive Metadata Reader"
+    description: str = """Gets detailed metadata for a file in Google Drive.
+
+    Returns: name, size, created date, modified date, owner, folder location, and MD5 hash.
+
+    Useful for:
+    - Checking when a file was last modified
+    - Comparing files for duplicates (via MD5 hash)
+    - Understanding file history
+    """
+    args_schema: Type[BaseModel] = DriveMetadataInput
+
+    def _run(self, file_id: str) -> str:
+        try:
+            creds = DriveAuth.authenticate()
+            drive_service = build('drive', 'v3', credentials=creds)
+
+            file_info = drive_service.files().get(
+                fileId=file_id,
+                fields='id, name, mimeType, size, createdTime, modifiedTime, owners, parents, md5Checksum, webViewLink'
+            ).execute()
+
+            # Build readable output
+            output = f"📄 FILE METADATA\n"
+            output += f"{'═' * 40}\n\n"
+            output += f"Name: {file_info.get('name', 'Unknown')}\n"
+            output += f"ID: {file_info.get('id')}\n"
+            output += f"Type: {file_info.get('mimeType', 'Unknown')}\n"
+
+            if file_info.get('size'):
+                size_kb = int(file_info['size']) / 1024
+                output += f"Size: {size_kb:.1f} KB\n"
+
+            if file_info.get('createdTime'):
+                output += f"Created: {file_info['createdTime'][:10]}\n"
+
+            if file_info.get('modifiedTime'):
+                output += f"Modified: {file_info['modifiedTime'][:10]}\n"
+
+            if file_info.get('owners'):
+                owners = [o.get('displayName', o.get('emailAddress', 'Unknown')) for o in file_info['owners']]
+                output += f"Owner: {', '.join(owners)}\n"
+
+            if file_info.get('md5Checksum'):
+                output += f"MD5 Hash: {file_info['md5Checksum']}\n"
+
+            if file_info.get('webViewLink'):
+                output += f"Link: {file_info['webViewLink']}\n"
+
+            # Resolve parent folder name
+            if file_info.get('parents'):
+                parent_id = file_info['parents'][0]
+                # Reverse lookup folder name
+                for name, fid in FOLDER_IDS.items():
+                    if fid == parent_id:
+                        output += f"Folder: {name}\n"
+                        break
+                else:
+                    output += f"Folder ID: {parent_id}\n"
+
+            return output
+
+        except Exception as e:
+            return f"Error getting metadata: {str(e)}"
+
+
+class DriveRecentChangesInput(BaseModel):
+    days: int = Field(
+        default=7,
+        description="Number of days to look back for changes (default: 7)"
+    )
+    folder: Optional[str] = Field(
+        default=None,
+        description="Optional: Limit to a specific folder"
+    )
+
+class DriveRecentChangesTool(BaseTool):
+    name: str = "Google Drive Recent Changes"
+    description: str = """Lists files that were modified recently.
+
+    Perfect for session start scans to see what changed since last time.
+
+    Returns files sorted by modification date (newest first).
+    """
+    args_schema: Type[BaseModel] = DriveRecentChangesInput
+
+    def _run(self, days: int = 7, folder: Optional[str] = None) -> str:
+        try:
+            from datetime import datetime, timedelta
+
+            creds = DriveAuth.authenticate()
+            drive_service = build('drive', 'v3', credentials=creds)
+
+            # Calculate cutoff date
+            cutoff = datetime.utcnow() - timedelta(days=days)
+            cutoff_str = cutoff.strftime('%Y-%m-%dT%H:%M:%S')
+
+            # Build query
+            query_parts = [
+                f"modifiedTime > '{cutoff_str}'",
+                "trashed = false"
+            ]
+
+            if folder:
+                folder_id = resolve_folder(folder)
+                if folder_id:
+                    query_parts.append(f"'{folder_id}' in parents")
+
+            query = " and ".join(query_parts)
+
+            results = drive_service.files().list(
+                q=query,
+                pageSize=50,
+                orderBy='modifiedTime desc',
+                fields="files(id, name, mimeType, modifiedTime, parents)"
+            ).execute()
+
+            items = results.get('files', [])
+
+            if not items:
+                return f"No files modified in the last {days} days."
+
+            output = f"📋 FILES MODIFIED IN LAST {days} DAYS\n"
+            output += f"{'═' * 40}\n\n"
+            output += f"Found {len(items)} file(s):\n\n"
+
+            for item in items:
+                file_type = "📄" if item['mimeType'] == 'application/vnd.google-apps.document' else "📁" if item['mimeType'] == 'application/vnd.google-apps.folder' else "📎"
+                mod_date = item.get('modifiedTime', '')[:10] if item.get('modifiedTime') else 'Unknown'
+
+                # Get folder name
+                folder_name = "Unknown"
+                if item.get('parents'):
+                    parent_id = item['parents'][0]
+                    for name, fid in FOLDER_IDS.items():
+                        if fid == parent_id:
+                            folder_name = name
+                            break
+
+                output += f"{file_type} {item['name']}\n"
+                output += f"   Modified: {mod_date} | Folder: {folder_name}\n"
+
+            return output
+
+        except Exception as e:
+            return f"Error getting recent changes: {str(e)}"
+
+
+class DrivePipelineStatusInput(BaseModel):
+    pass  # No inputs needed
+
+class DrivePipelineStatusTool(BaseTool):
+    name: str = "Editorial Pipeline Status"
+    description: str = """Gets the current status of the editorial pipeline.
+
+    Shows file counts in each stage:
+    - Inbox (new/unprocessed)
+    - In Development (active work)
+    - Ready for Review (awaiting editing)
+    - Published (completed)
+
+    Also flags any anomalies like stale files.
+    """
+    args_schema: Type[BaseModel] = DrivePipelineStatusInput
+
+    def _run(self) -> str:
+        try:
+            from datetime import datetime, timedelta
+
+            creds = DriveAuth.authenticate()
+            drive_service = build('drive', 'v3', credentials=creds)
+
+            pipeline_folders = ['inbox', 'in_development', 'ready_for_review', 'published']
+            counts = {}
+            stale_files = []
+            stale_threshold = datetime.utcnow() - timedelta(days=7)
+
+            for folder_name in pipeline_folders:
+                folder_id = FOLDER_IDS.get(folder_name)
+                if not folder_id:
+                    continue
+
+                results = drive_service.files().list(
+                    q=f"'{folder_id}' in parents and trashed = false",
+                    pageSize=100,
+                    fields="files(id, name, modifiedTime)"
+                ).execute()
+
+                files = results.get('files', [])
+                counts[folder_name] = len(files)
+
+                # Check for stale files in development
+                if folder_name == 'in_development':
+                    for f in files:
+                        if f.get('modifiedTime'):
+                            mod_time = datetime.fromisoformat(f['modifiedTime'].replace('Z', '+00:00'))
+                            if mod_time.replace(tzinfo=None) < stale_threshold:
+                                days_old = (datetime.utcnow() - mod_time.replace(tzinfo=None)).days
+                                stale_files.append((f['name'], days_old))
+
+            # Build output
+            output = "📊 PIPELINE STATUS\n"
+            output += "═" * 40 + "\n\n"
+
+            output += f"📥 Inbox:            {counts.get('inbox', 0)} items\n"
+            output += f"🔧 In Development:   {counts.get('in_development', 0)} items\n"
+            output += f"👁️ Ready for Review: {counts.get('ready_for_review', 0)} items\n"
+            output += f"✅ Published:        {counts.get('published', 0)} items\n"
+
+            total = sum(counts.values())
+            output += f"\n   Total: {total} files in pipeline\n"
+
+            if stale_files:
+                output += f"\n⚠️ STALE FILES (>{7} days in Development):\n"
+                for name, days in stale_files:
+                    output += f"   - {name} ({days} days)\n"
+
+            if counts.get('inbox', 0) > 0:
+                output += f"\n📌 Note: {counts['inbox']} items in Inbox awaiting triage\n"
+
+            return output
+
+        except Exception as e:
+            return f"Error getting pipeline status: {str(e)}"
+
