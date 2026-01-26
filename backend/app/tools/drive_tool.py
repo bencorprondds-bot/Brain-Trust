@@ -9,19 +9,38 @@ from googleapiclient.discovery import build
 SCOPES = ['https://www.googleapis.com/auth/drive', 'https://www.googleapis.com/auth/documents']
 
 # Editorial Pipeline Folder IDs
-# These are the known folders in the "Life with AI" shared Drive structure
-FOLDER_IDS = {
-    'life_with_ai': '1duf6BRY-tqyWzP3gH1clfaM5B-Qqh0r5',
-    'inbox': '1KzQODiGWI0DTsV6dEJHOGvniKx7nR8Ss',
-    'in_development': '1fKYixOC9aDcm-XHAIHhfGj3rKlRg5b-i',
-    'ready_for_review': '1Zy2ocnE4EOwpeuvu8RFrNS_WophR4ebB',
-    'published': '1buuMweoHEdo17_YdR9qgXw42dpNhgyR3',
-    'voice_library': '1zzD3HBIrjOAQ-L5a1WDsewroKaOzpie_',
-    'agent_prompts': '1u81lD6187CGxztciR_clM4rH-9TpM1TT',
-    'reference_docs': '1SKO7KfS3UUuwTiHQ1WYS0eBfVryR1Wxr',
-    'workflows': '1ZGHfjdxIJPxOe_W_8iNskV9U5UkT0uAc',
-    'images': '1y7yCgVcFsgWSTk4ZreuMBcgfJ91il6MO',
-}
+# These are loaded from environment variables (preferred) or fall back to defaults.
+# To configure for your Shared Drive:
+#   1. Get folder IDs from your Google Drive URLs (the long string after /folders/)
+#   2. Set environment variables: DRIVE_FOLDER_INBOX, DRIVE_FOLDER_IN_DEVELOPMENT, etc.
+#   3. Or update the defaults below for your setup
+#
+# Environment variable format: DRIVE_FOLDER_{NAME} where NAME is uppercase with underscores
+# Example: DRIVE_FOLDER_IN_DEVELOPMENT=1abc123def456
+
+def _load_folder_ids():
+    """Load folder IDs from environment variables with fallback to defaults."""
+    defaults = {
+        'life_with_ai': '1duf6BRY-tqyWzP3gH1clfaM5B-Qqh0r5',
+        'inbox': '1KzQODiGWI0DTsV6dEJHOGvniKx7nR8Ss',
+        'in_development': '1fKYixOC9aDcm-XHAIHhfGj3rKlRg5b-i',
+        'ready_for_review': '1Zy2ocnE4EOwpeuvu8RFrNS_WophR4ebB',
+        'published': '1buuMweoHEdo17_YdR9qgXw42dpNhgyR3',
+        'voice_library': '1zzD3HBIrjOAQ-L5a1WDsewroKaOzpie_',
+        'agent_prompts': '1u81lD6187CGxztciR_clM4rH-9TpM1TT',
+        'reference_docs': '1SKO7KfS3UUuwTiHQ1WYS0eBfVryR1Wxr',
+        'workflows': '1ZGHfjdxIJPxOe_W_8iNskV9U5UkT0uAc',
+        'images': '1y7yCgVcFsgWSTk4ZreuMBcgfJ91il6MO',
+    }
+
+    folder_ids = {}
+    for key, default_value in defaults.items():
+        env_key = f"DRIVE_FOLDER_{key.upper()}"
+        folder_ids[key] = os.getenv(env_key, default_value)
+
+    return folder_ids
+
+FOLDER_IDS = _load_folder_ids()
 
 # Template Document IDs - Create these manually in Google Drive
 # The service account will COPY these templates to create new documents
