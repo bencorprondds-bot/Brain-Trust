@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "gdrive": {
+      "command": "npx",
+      "args": ["-y", "@anthropic/mcp-server-gdrive"],
+      "env": {
+        "GDRIVE_CREDENTIALS_PATH": "${GDRIVE_OAUTH_PATH:-./credentials/gcp-oauth.keys.json}"
+      },
+      "disabled": true,
+      "_comment": "Enable after setting up OAuth: 1) Create Desktop OAuth credentials in Google Cloud Console, 2) Save as credentials/gcp-oauth.keys.json, 3) Set disabled to false"
+    }
+  }
+}
