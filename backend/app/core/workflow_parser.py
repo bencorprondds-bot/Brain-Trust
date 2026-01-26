@@ -82,7 +82,7 @@ class WorkflowParser:
         import os
         from langchain_google_genai import ChatGoogleGenerativeAI
         from langchain_anthropic import ChatAnthropic
-        from app.core.context_loader import ContextLoader
+        from app.core.context_loader import ContextLoader, AgentPromptLoader
         from app.tools.script_execution_tool import ScriptRegistry
 
         # Load TELOS context
@@ -93,9 +93,17 @@ class WorkflowParser:
             # Fallback: operate without TELOS (log warning)
             print(f"WARNING: {e}. Agent will operate without user context.")
             context = None
-        
-        # Build base backstory
-        base_backstory = data.get('backstory', 'An AI assistant.')
+
+        # Load role-specific prompt from backend/prompts/ if available
+        role = data.get('role', 'Assistant')
+        role_prompt = AgentPromptLoader.load_prompt(role)
+
+        # Build base backstory: prefer role prompt > node backstory > default
+        if role_prompt:
+            base_backstory = role_prompt
+            print(f"[Agent] Loaded prompt for role '{role}' from prompts/{role.lower()}.md")
+        else:
+            base_backstory = data.get('backstory', 'An AI assistant.')
         
         # Inject TELOS if available
         if context:
