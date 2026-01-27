@@ -142,13 +142,14 @@ class DriveReadTool(BaseTool):
 class DriveWriteInput(BaseModel):
     title: str = Field(description="Title of the new document")
     content: str = Field(description="Text content to write into the document")
+    folder: str = Field(default="in_development", description="Target folder name: 'inbox', 'in_development', 'ready_for_review', 'published', 'characters', 'agent_prompts', 'reference_docs', 'workflows', 'world', etc.")
 
 class DriveWriteTool(BaseTool):
     name: str = "Google Doc Creator"
-    description: str = "Creates a new Google Doc with the specified content."
+    description: str = "Creates a new Google Doc with the specified content in a specific folder."
     args_schema: Type[BaseModel] = DriveWriteInput
 
-    def _run(self, title: str, content: str) -> str:
+    def _run(self, title: str, content: str, folder: str = "in_development") -> str:
         try:
             from googleapiclient.http import MediaIoBaseUpload
             import io
@@ -157,8 +158,11 @@ class DriveWriteTool(BaseTool):
             docs_service = build('docs', 'v1', credentials=creds)
             drive_service = build('drive', 'v3', credentials=creds)
             
-            # Use Shared Drive folder ID for '02_In_Development'
-            target_folder = FOLDER_IDS.get('in_development', '1_AcAlToFkwKwG34FLij54suGOiQ68p_d')
+            # Look up the folder ID from FOLDER_IDS
+            target_folder = FOLDER_IDS.get(folder.lower())
+            if not target_folder:
+                available_folders = ", ".join(FOLDER_IDS.keys())
+                return f"❌ Folder '{folder}' not found. Available folders: {available_folders}"
             
             # 1. Prepare Metadata
             file_metadata = {
@@ -194,9 +198,10 @@ class DriveWriteTool(BaseTool):
                 ]
                 docs_service.documents().batchUpdate(documentId=doc_id, body={'requests': requests}).execute()
             
-            return f"Successfully created document '{title}' in 'In_Development' Shared Drive folder (ID: {doc_id})"
+            folder_display = folder.replace('_', ' ').title()
+            return f"✅ Successfully created document '{title}' in '{folder_display}' folder (ID: {doc_id})"
         except Exception as e:
-            return f"Error creating doc: {str(e)}"
+            return f"❌ Error creating doc: {str(e)}"
 
 
 class FindFolderInput(BaseModel):
