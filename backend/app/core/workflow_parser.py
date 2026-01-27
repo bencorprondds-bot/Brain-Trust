@@ -51,8 +51,22 @@ class WorkflowParser:
                 node_data = self.nodes[node_id]['data']
                 
                 # Create the task
+                task_description = (
+                    node_data.get('prompt')
+                    or node_data.get('goal')
+                    or f"Execute role: {node_data.get('role', 'Agent')}"
+                )
+
+                role_name = node_data.get('role', '')
+                if 'librarian' in role_name.lower():
+                    task_description += (
+                        "\n\nIMPORTANT: Use the available Google Drive tools to "
+                        "perform the task. Return the tool output verbatim without "
+                        "paraphrasing. If a tool returns IDs, include them in your "
+                        "final answer exactly as provided."
+                    )
                 task = Task(
-                    description=node_data.get('prompt', f"Execute role: {node_data.get('role', 'Agent')}"),
+                    description=task_description,
                     agent=agent,
                     expected_output="Detailed analysis and execution results."
                 )
@@ -157,15 +171,27 @@ class WorkflowParser:
         script_tools = registry.get_tools()
         tools.extend(script_tools)
 
-        return Agent(
-            role=data.get('role', 'Assistant'),
-            goal=data.get('goal', 'Help the user'),
-            backstory=enhanced_backstory,  # Now includes TELOS context
-            allow_delegation=False,
-            tools=tools,  # Includes script tools + role-specific tools
-            verbose=True,
-            llm=llm
-        )
+        agent_kwargs = {
+            "role": data.get('role', 'Assistant'),
+            "goal": data.get('goal', 'Help the user'),
+            "backstory": enhanced_backstory,  # Now includes TELOS context
+            "allow_delegation": False,
+            "tools": tools,  # Includes script tools + role-specific tools
+            "verbose": True,
+            "llm": llm,
+        }
+
+        # Reduce retries/iterations for Librarian during tests to avoid tool spam
+        if 'librarian' in data.get('role', '').lower():
+            import os
+            max_iter_env = os.getenv("BRAIN_TRUST_MAX_ITER")
+            try:
+                max_iter_value = int(max_iter_env) if max_iter_env else 2
+            except ValueError:
+                max_iter_value = 2
+            agent_kwargs["max_iter"] = max_iter_value
+
+        return Agent(**agent_kwargs)
 
 
     def _topological_sort(self) -> List[str]:

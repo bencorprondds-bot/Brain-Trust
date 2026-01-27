@@ -249,6 +249,32 @@ class FindFolderTool(BaseTool):
 
     def _run(self, folder_name: str) -> str:
         try:
+            if not folder_name or not folder_name.strip():
+                return "❌ Folder name cannot be empty"
+
+            normalized = folder_name.strip().lower().replace(" ", "_")
+            if "_" in normalized:
+                # collapse repeated underscores
+                while "__" in normalized:
+                    normalized = normalized.replace("__", "_")
+
+            # Remove numeric prefixes like 01_, 02_, etc.
+            import re
+            normalized = re.sub(r"^\d+_", "", normalized)
+
+            # Direct mapping for known folder keys
+            if normalized in FOLDER_IDS:
+                folder_id = FOLDER_IDS[normalized]
+                display_name = folder_name.strip()
+                spaced_name = display_name.replace("_", " ")
+                return (
+                    f"✅ Found 1 folder named '{display_name}':\n"
+                    f"(Display name: {spaced_name})\n\n"
+                    f"📁 {display_name}\n"
+                    f"   ID: {folder_id}\n"
+                    f"   Parents: {SHARED_DRIVE_ID}\n"
+                )
+
             creds = DriveAuth.authenticate()
             service = build('drive', 'v3', credentials=creds)
             

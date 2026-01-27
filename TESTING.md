@@ -82,6 +82,37 @@ pytest --showlocals
 pytest -n auto
 ```
 
+## Environment & Credentials
+
+These tests require local secrets and should never be committed to git.
+
+### Required Variables
+
+- `BRAIN_TRUST_API_KEY` (API auth for the backend)
+- `GOOGLE_API_KEY` or `GEMINI_API_KEY` (Gemini LLM access)
+
+### Optional Variables
+
+- `BRAIN_TRUST_API_URL` (defaults to `http://127.0.0.1:8000`)
+- `GOOGLE_APPLICATION_CREDENTIALS` (absolute path to your Google service account JSON)
+- `BRAIN_TRUST_MAX_ITER` (Librarian agent retry cap; default: 2)
+
+### Service Account JSON
+
+Place your Google service account JSON locally and keep it out of git. Either:
+
+- Set `GOOGLE_APPLICATION_CREDENTIALS=/absolute/path/to/credentials.json`, or
+- Save it at `backend/credentials.json` (ignored by `.gitignore`).
+
+### Example (local shell)
+
+```bash
+export BRAIN_TRUST_API_KEY=...your key...
+export GOOGLE_API_KEY=...your key...
+export GOOGLE_APPLICATION_CREDENTIALS=/absolute/path/to/credentials.json
+export BRAIN_TRUST_MAX_ITER=2
+```
+
 ### Watch Mode
 
 ```bash
