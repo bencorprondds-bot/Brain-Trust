@@ -94,7 +94,11 @@ class WorkflowParser:
                         f"Their output contains the specific information you need. "
                         f"Do NOT invent or hallucinate information that wasn't provided. "
                         f"If the context mentions specific characters, files, or data, "
-                        f"use ONLY that information."
+                        f"use ONLY that information.\n\n"
+                        f"NOTE ON LARGE FILES: If the context includes a 'Cache Path' for a "
+                        f"large document, use the 'Cached File Reader' tool to access the "
+                        f"full content when needed. The summary provided gives you an overview, "
+                        f"but the complete document is available at the cache path."
                     )
 
                 task = Task(
@@ -196,8 +200,14 @@ class WorkflowParser:
         
         # Add writer/editor tools
         if any(keyword in data.get('role', '').lower() for keyword in ['writer', 'editor', 'creative']):
-            from app.tools.drive_tool import DocsEditTool, DriveReadTool, WordDocExportTool
-            tools.extend([DocsEditTool(), DriveReadTool(), WordDocExportTool()])
+            from app.tools.drive_tool import DocsEditTool, DriveReadTool, WordDocExportTool, CachedFileReadTool
+            tools.extend([DocsEditTool(), DriveReadTool(), WordDocExportTool(), CachedFileReadTool()])
+
+        # Add CachedFileReadTool to all agents (so they can read large cached documents)
+        # This is safe to add multiple times as CrewAI dedupes by tool name
+        from app.tools.drive_tool import CachedFileReadTool
+        if not any(t.name == "Cached File Reader" for t in tools):
+            tools.append(CachedFileReadTool())
         
         # Load script tools LAST (fallback only)
         registry = ScriptRegistry()
