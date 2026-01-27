@@ -32,8 +32,8 @@ const initialNodes = [
     data: {
       name: 'The Librarian',
       role: 'Librarian',
-      goal: 'Find files in "Reference_Docs/Characters/" (specifically Oren) and read them to provide context.',
-      backstory: 'The meticulous guardian of the Drive.',
+      goal: 'Find relevant files in Google Drive and output them in <FETCHED_FILES> format for other agents to use.',
+      backstory: 'A meticulous file navigator who directs other agents to the resources they need.',
       status: 'idle',
       model: 'gemini-2.0-flash',
       files: [] as string[]
@@ -46,7 +46,7 @@ const initialNodes = [
     data: {
       name: 'First Draft',
       role: 'Creative Writer',
-      goal: 'Write a scene where Oren discovers the Ghost code, using the context provided.',
+      goal: 'First, read any files provided in the context. Then write a scene where Oren discovers the Ghost code, using that context.',
       backstory: 'A creative fiction writer.',
       status: 'idle',
       model: 'gemini-2.0-flash',
@@ -159,7 +159,11 @@ export default function Home() {
         const fileRegex = /<FETCHED_FILES>([\s\S]*?)<\/FETCHED_FILES>/;
         const match = cleanContent ? cleanContent.match(fileRegex) : null;
 
+        console.log('[FETCH BIN] Checking for file tags...');
         if (match) {
+          console.log('[FETCH BIN] ✅ Found <FETCHED_FILES> tag:', match[0]);
+          console.log('[FETCH BIN] Raw content:', match[1]);
+          
           try {
             const rawContent = match[1].trim();
             // Robust Regex Parse: Remove brackets and split by comma, then strip quotes
@@ -177,6 +181,8 @@ export default function Home() {
               files = [rawContent.replace(/^['"]|['"]$/g, '')];
             }
 
+            console.log('[FETCH BIN] Parsed files:', files);
+
             if (files.length > 0) {
               // 1. Update Global Bin
               setFetchedFiles(prev => Array.from(new Set([...prev, ...files])));
@@ -187,6 +193,8 @@ export default function Home() {
                   ? { ...n, data: { ...n.data, files: Array.from(new Set([...(n.data.files || []), ...files])) } }
                   : n
               ));
+              
+              console.log('[FETCH BIN] Updated global bin. Total files:', files.length);
             }
 
             // Hide tag from UI
@@ -195,6 +203,8 @@ export default function Home() {
             console.error("Error parsing fetched files tag:", e);
             // Don't crash, just ignore parsing failure
           }
+        } else {
+          console.log('[FETCH BIN] No <FETCHED_FILES> tag found in response');
         }
 
         return {

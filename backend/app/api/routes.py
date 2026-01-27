@@ -5,6 +5,10 @@ from app.core.workflow_parser import WorkflowParser
 from app.core.auth import verify_api_key
 from crewai import Task
 import time
+import logging
+import re
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -109,6 +113,19 @@ async def chat_endpoint(request: ChatRequest):
             
         # Inject instructions for file fetching visualization
         prompt += "\n\nSYSTEM INSTRUCTION: If you use any tools to find, read, or list files, you MUST list the absolute paths of those files at the very end of your response in this exact format:\n<FETCHED_FILES>['path/to/file1', 'path/to/file2']</FETCHED_FILES>\nOnly include files you successfully found or read."
+        
+        # Log chat details
+        logger.info(f"[CHAT] Agent: {request.agent_config.get('name', 'Unknown')}")
+        logger.info(f"[CHAT] Message: {request.message[:100]}...")
+        if request.context:
+            logger.info(f"[CHAT] Context provided: {len(request.context)} chars")
+            # Log the AVAILABLE CONTEXT FILES section if present
+            if "AVAILABLE CONTEXT FILES" in request.context:
+                try:
+                    context_files_section = request.context.split("AVAILABLE CONTEXT FILES")[1].split("\n\n")[0]
+                    logger.info(f"[CHAT] Context files: {context_files_section}")
+                except Exception as e:
+                    logger.warning(f"[CHAT] Could not parse context files section: {e}")
             
         # Execute single task
         # Note: execute_task returns a TaskOutput string
@@ -119,6 +136,20 @@ async def chat_endpoint(request: ChatRequest):
                 agent=agent
             )
         )
+        
+        # Log response details
+        response_str = str(response)
+        logger.info(f"[CHAT] Response length: {len(response_str)} chars")
+        
+        # Check for FETCHED_FILES tags
+        if "<FETCHED_FILES>" in response_str:
+            match = re.search(r'<FETCHED_FILES>([\s\S]*?)</FETCHED_FILES>', response_str)
+            if match:
+                logger.info(f"[CHAT] ✅ FETCHED_FILES tag found: {match.group(1)}")
+            else:
+                logger.warning(f"[CHAT] ⚠️ FETCHED_FILES tag detected but couldn't parse")
+        else:
+            logger.info(f"[CHAT] No FETCHED_FILES tag in response")
         
         return {"response": str(response)}
         
