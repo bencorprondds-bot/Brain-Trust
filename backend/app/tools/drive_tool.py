@@ -8,6 +8,29 @@ from googleapiclient.discovery import build
 # Scopes
 SCOPES = ['https://www.googleapis.com/auth/drive', 'https://www.googleapis.com/auth/documents']
 
+# =============================================================================
+# SHARED DRIVE CONFIGURATION - Life with AI
+# =============================================================================
+SHARED_DRIVE_ID = '0AMpJ2pkSpYq-Uk9PVA'
+
+# Canonical folder IDs from the Shared Drive
+FOLDER_IDS = {
+    # Editorial Pipeline
+    'system': '1_85nRX4isDeoshv98bFL3ARljJ4LTkT0',
+    'inbox': '1RKLpafuip4HgYj_bmuUfuj3ojZWNb1WZ',
+    'in_development': '1_AcAlToFkwKwG34FLij54suGOiQ68p_d',
+    'ready_for_review': '1va471qBT7Mogi4ymMz_zS6oW0DSQ3QJs',
+    'beta_readers': '1HwyGuQroOXsxQPJ1paCyTcdv6h14hPXs',
+    'published': '1SMKJVYbtUJdc0za5X9VD689tzo5A1-_o',
+    # Characters
+    'characters': '1TNzmGFe28yzga77O34YoF_m0F1WMzcbL',
+    'character_in_development': '1I4KaPh3PPKyQoRnYDJ_miWxvaMWToF8R',
+    # Reference & Assets
+    'agent_prompts': '1JvMDwstlpXusW6lCSrRlVazCjJvtnA_Y',
+    'voice_library': '1UuJOd9eM_V_jn4LH_pG_fybZOGcz4CEU',
+    'workflows': '10NH-ufIi7PNNVL6SFW5ClgAJ5j2tM4iv',
+}
+
 class DriveAuth:
     """Helper to authenticate with Google Drive"""
     @staticmethod
@@ -40,20 +63,31 @@ class DriveListTool(BaseTool):
         try:
             creds = DriveAuth.authenticate()
             service = build('drive', 'v3', credentials=creds)
-            
-            # For service accounts, 'root' means "list all shared files"
+
+            # For service accounts, 'root' means "list all files in Shared Drive"
             if folder_id.lower() in ['root', 'all', '']:
-                # List all files accessible to service account
+                # List all files in the Shared Drive
                 query = "trashed = false"
+                results = service.files().list(
+                    q=query,
+                    corpora='drive',
+                    driveId=SHARED_DRIVE_ID,
+                    includeItemsFromAllDrives=True,
+                    supportsAllDrives=True,
+                    pageSize=50,
+                    fields="nextPageToken, files(id, name, mimeType, parents)"
+                ).execute()
             else:
-                # List files in specific folder
+                # List files in specific folder (still needs Shared Drive support)
                 query = f"'{folder_id}' in parents and trashed = false"
-            
-            results = service.files().list(
-                q=query,
-                pageSize=50,  # Increased for better coverage
-                fields="nextPageToken, files(id, name, mimeType, parents)"
-            ).execute()
+                results = service.files().list(
+                    q=query,
+                    includeItemsFromAllDrives=True,
+                    supportsAllDrives=True,
+                    pageSize=50,
+                    fields="nextPageToken, files(id, name, mimeType, parents)"
+                ).execute()
+
             items = results.get('files', [])
 
             if not items:
@@ -121,29 +155,29 @@ class DriveWriteTool(BaseTool):
         try:
             from googleapiclient.http import MediaIoBaseUpload
             import io
-            
+
             creds = DriveAuth.authenticate()
             docs_service = build('docs', 'v1', credentials=creds)
             drive_service = build('drive', 'v3', credentials=creds)
-            
-            # Target Folder ID for '02_In_Development'
-            TARGET_FOLDER_ID = '1fKYixOC9aDcm-XHAIHhfGj3rKlRg5b-i'
-            
+
+            # Target Folder ID for '02_In_Development' in the Shared Drive
+            TARGET_FOLDER_ID = FOLDER_IDS['in_development']
+
             # 1. Prepare Metadata
             file_metadata = {
                 'name': title,
                 'mimeType': 'application/vnd.google-apps.document',
                 'parents': [TARGET_FOLDER_ID]
             }
-            
-            # 2. Create via Upload Bypass
-            # Uploading a file (even empty) acts differently than creating a native doc from scratch
+
+            # 2. Create via Upload Bypass (with Shared Drive support)
             media = MediaIoBaseUpload(io.BytesIO(b' '), mimetype='text/plain', resumable=True)
-            
+
             doc = drive_service.files().create(
                 body=file_metadata,
                 media_body=media,
-                fields='id'
+                fields='id',
+                supportsAllDrives=True  # Required for Shared Drives
             ).execute()
             
             doc_id = doc.get('id')
