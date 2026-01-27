@@ -57,32 +57,35 @@ class DriveListTool(BaseTool):
             creds = DriveAuth.authenticate()
             service = build('drive', 'v3', credentials=creds)
             
+            # Collect all items across all pages
+            items = []
+            page_token = None
+            
             # Query shared drive with proper support for all drives
             if folder_id.lower() in ['root', 'all', '']:
                 # List all files from Shared Drive
                 query = "trashed = false"
-                results = service.files().list(
-                    q=query,
-                    corpora='drive',
-                    driveId=SHARED_DRIVE_ID,
-                    includeItemsFromAllDrives=True,
-                    supportsAllDrives=True,
-                    pageSize=50,
-                    fields="nextPageToken, files(id, name, mimeType, parents)"
-                ).execute()
             else:
                 # List files in specific folder on Shared Drive
                 query = f"'{folder_id}' in parents and trashed = false"
+            
+            # Paginate through all results
+            while True:
                 results = service.files().list(
                     q=query,
                     corpora='drive',
                     driveId=SHARED_DRIVE_ID,
                     includeItemsFromAllDrives=True,
                     supportsAllDrives=True,
-                    pageSize=50,
-                    fields="nextPageToken, files(id, name, mimeType, parents)"
+                    pageSize=100,  # Increased for efficiency
+                    fields="nextPageToken, files(id, name, mimeType, parents)",
+                    pageToken=page_token
                 ).execute()
-            items = results.get('files', [])
+                
+                items.extend(results.get('files', []))
+                page_token = results.get('nextPageToken')
+                if not page_token:
+                    break
 
             if not items:
                 return 'No files found. The service account may not have access to any files.'
@@ -195,3 +198,44 @@ class DriveWriteTool(BaseTool):
         except Exception as e:
             return f"Error creating doc: {str(e)}"
 
+
+class FindFolderInput(BaseModel):
+    folder_name: str = Field(description="The name of the folder to find in the Shared Drive")
+
+class FindFolderTool(BaseTool):
+    name: str = "Google Drive Folder Finder"
+    description: str = "Searches the Shared Drive for a folder by name. Returns the folder ID and location."
+    args_schema: Type[BaseModel] = FindFolderInput
+
+    def _run(self, folder_name: str) -> str:
+        try:
+            creds = DriveAuth.authenticate()
+            service = build('drive', 'v3', credentials=creds)
+            
+            # Search for folders with this name in the Shared Drive
+            query = f"name = '{folder_name}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false"
+            
+            results = service.files().list(
+                q=query,
+                corpora='drive',
+                driveId=SHARED_DRIVE_ID,
+                includeItemsFromAllDrives=True,
+                supportsAllDrives=True,
+                pageSize=100,
+                fields="files(id, name, parents)"
+            ).execute()
+            
+            folders = results.get('files', [])
+            
+            if not folders:
+                return f"❌ Folder '{folder_name}' not found in Shared Drive"
+            
+            output = f"✅ Found {len(folders)} folder(s) named '{folder_name}':\n\n"
+            for folder in folders:
+                output += f"📁 {folder['name']}\n"
+                output += f"   ID: {folder['id']}\n"
+                output += f"   Parents: {folder.get('parents', ['root'])[0]}\n\n"
+            
+            return output
+        except Exception as e:
+            return f"Error finding folder: {str(e)}"
