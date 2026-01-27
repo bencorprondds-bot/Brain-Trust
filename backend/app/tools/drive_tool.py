@@ -244,3 +244,135 @@ class FindFolderTool(BaseTool):
             return output
         except Exception as e:
             return f"Error finding folder: {str(e)}"
+
+class DocsEditInput(BaseModel):
+    doc_id: str = Field(description="The ID of the Google Doc to edit")
+    operation: str = Field(description="Operation to perform: 'read', 'append', 'insert', 'replace', or 'clear'")
+    text: str = Field(default="", description="Text content for append, insert, or replace operations")
+    index: int = Field(default=1, description="Index position for insert operation (1-based)")
+
+class DocsEditTool(BaseTool):
+    name: str = "Google Docs Editor"
+    description: str = "Read, edit, and manage Google Docs content. Supports read, append, insert, replace, and clear operations."
+    args_schema: Type[BaseModel] = DocsEditInput
+
+    def _run(self, doc_id: str, operation: str, text: str = "", index: int = 1) -> str:
+        try:
+            creds = DriveAuth.authenticate()
+            docs_service = build('docs', 'v1', credentials=creds)
+            
+            operation = operation.lower().strip()
+            
+            # READ operation
+            if operation == 'read':
+                document = docs_service.documents().get(documentId=doc_id).execute()
+                content = document.get('body', {}).get('content', [])
+                
+                text_content = ""
+                for block in content:
+                    if 'paragraph' in block:
+                        for element in block['paragraph'].get('elements', []):
+                            if 'textRun' in element:
+                                text_content += element['textRun'].get('content', '')
+                
+                if not text_content.strip():
+                    return f"📄 Document is empty or contains only formatting"
+                return f"📄 Document content:\n\n{text_content}"
+            
+            # APPEND operation - add text to end of document
+            elif operation == 'append':
+                if not text:
+                    return "❌ Append requires 'text' parameter"
+                
+                document = docs_service.documents().get(documentId=doc_id).execute()
+                end_index = document['body']['content'][-1]['endIndex']
+                
+                requests = [
+                    {
+                        'insertText': {
+                            'location': {'index': end_index},
+                            'text': text
+                        }
+                    }
+                ]
+                docs_service.documents().batchUpdate(documentId=doc_id, body={'requests': requests}).execute()
+                return f"✅ Appended {len(text)} characters to document"
+            
+            # INSERT operation - insert text at specific position
+            elif operation == 'insert':
+                if not text:
+                    return "❌ Insert requires 'text' parameter"
+                
+                requests = [
+                    {
+                        'insertText': {
+                            'location': {'index': index},
+                            'text': text
+                        }
+                    }
+                ]
+                docs_service.documents().batchUpdate(documentId=doc_id, body={'requests': requests}).execute()
+                return f"✅ Inserted {len(text)} characters at position {index}"
+            
+            # REPLACE operation - replace all content
+            elif operation == 'replace':
+                if not text:
+                    return "❌ Replace requires 'text' parameter"
+                
+                document = docs_service.documents().get(documentId=doc_id).execute()
+                body_content = document['body']['content']
+                
+                # Find the end index of document content
+                end_index = 1
+                for block in body_content:
+                    if 'endIndex' in block:
+                        end_index = block['endIndex']
+                
+                requests = [
+                    {
+                        'deleteContentRange': {
+                            'range': {
+                                'startIndex': 1,
+                                'endIndex': end_index
+                            }
+                        }
+                    },
+                    {
+                        'insertText': {
+                            'location': {'index': 1},
+                            'text': text
+                        }
+                    }
+                ]
+                docs_service.documents().batchUpdate(documentId=doc_id, body={'requests': requests}).execute()
+                return f"✅ Replaced document content with {len(text)} characters"
+            
+            # CLEAR operation - delete all content
+            elif operation == 'clear':
+                document = docs_service.documents().get(documentId=doc_id).execute()
+                body_content = document['body']['content']
+                
+                end_index = 1
+                for block in body_content:
+                    if 'endIndex' in block:
+                        end_index = block['endIndex']
+                
+                requests = [
+                    {
+                        'deleteContentRange': {
+                            'range': {
+                                'startIndex': 1,
+                                'endIndex': end_index
+                            }
+                        }
+                    }
+                ]
+                docs_service.documents().batchUpdate(documentId=doc_id, body={'requests': requests}).execute()
+                return f"✅ Cleared all content from document"
+            
+            else:
+                valid_ops = "read, append, insert, replace, clear"
+                return f"❌ Invalid operation '{operation}'. Valid operations: {valid_ops}"
+                
+        except Exception as e:
+            return f"❌ Error editing document: {str(e)}"
