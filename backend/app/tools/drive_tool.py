@@ -203,6 +203,41 @@ class DriveWriteTool(BaseTool):
         except Exception as e:
             return f"❌ Error creating doc: {str(e)}"
 
+class WordDocExportInput(BaseModel):
+    file_id: str = Field(description="The ID of the Word document (.docx) to export as text")
+
+class WordDocExportTool(BaseTool):
+    name: str = "Word Document Exporter"
+    description: str = "Exports Word documents (.docx files) as plain text. Use this for .docx files that can't be read with Google Docs API."
+    args_schema: Type[BaseModel] = WordDocExportInput
+
+    def _run(self, file_id: str) -> str:
+        try:
+            creds = DriveAuth.authenticate()
+            drive_service = build('drive', 'v3', credentials=creds)
+            
+            # Export as plain text
+            request = drive_service.files().export_media(
+                fileId=file_id,
+                mimeType='text/plain'
+            )
+            
+            content = request.execute()
+            text = content.decode('utf-8')
+            
+            if not text.strip():
+                return "📄 Word document appears to be empty or contains no extractable text"
+            
+            return f"📄 Word document content:\n\n{text}"
+        except Exception as e:
+            # If export fails, try getting file metadata to provide better error
+            try:
+                file_metadata = drive_service.files().get(fileId=file_id, fields="name,mimeType").execute()
+                mime_type = file_metadata.get('mimeType', 'unknown')
+                name = file_metadata.get('name', 'unknown')
+                return f"❌ Cannot export file '{name}' (type: {mime_type}). Error: {str(e)}"
+            except:
+                return f"❌ Error exporting Word document: {str(e)}"
 
 class FindFolderInput(BaseModel):
     folder_name: str = Field(description="The name of the folder to find in the Shared Drive")

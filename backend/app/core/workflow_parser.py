@@ -129,14 +129,33 @@ class WorkflowParser:
                 temperature=0.7
             )
         
-        # Load script tools
-        registry = ScriptRegistry()
-        tools = registry.get_tools()
+        # Initialize tools list - prioritize CrewAI tools over scripts
+        tools = []
         
-        # Add role-specific tools
+        # Add role-specific CrewAI tools FIRST (agents try tools in order)
         if 'librarian' in data.get('role', '').lower():
-            from app.tools.drive_tool import DriveListTool, DriveReadTool, DriveWriteTool
-            tools.extend([DriveListTool(), DriveReadTool(), DriveWriteTool()])
+            from app.tools.drive_tool import (
+                DriveListTool, DriveReadTool, DriveWriteTool, 
+                FindFolderTool, DocsEditTool, WordDocExportTool
+            )
+            tools.extend([
+                DriveListTool(), 
+                DriveReadTool(), 
+                DriveWriteTool(), 
+                FindFolderTool(),
+                DocsEditTool(),
+                WordDocExportTool()
+            ])
+        
+        # Add writer/editor tools
+        if any(keyword in data.get('role', '').lower() for keyword in ['writer', 'editor', 'creative']):
+            from app.tools.drive_tool import DocsEditTool, DriveReadTool, WordDocExportTool
+            tools.extend([DocsEditTool(), DriveReadTool(), WordDocExportTool()])
+        
+        # Load script tools LAST (fallback only)
+        registry = ScriptRegistry()
+        script_tools = registry.get_tools()
+        tools.extend(script_tools)
 
         return Agent(
             role=data.get('role', 'Assistant'),
