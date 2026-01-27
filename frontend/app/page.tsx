@@ -10,6 +10,7 @@ import ReactFlow, {
   addEdge,
   Connection,
   Node,
+  Edge,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import { Play, Loader2 } from 'lucide-react';
@@ -18,6 +19,7 @@ import { Button } from '@/components/ui/button';
 import AgentNode from '@/components/nodes/AgentNode';
 import ChatInterface, { Message } from '@/components/ChatInterface';
 import FetchBin from '@/components/FetchBin';
+import AgentSelector from '@/components/AgentSelector';
 
 const nodeTypes = {
   agentNode: AgentNode,
@@ -91,6 +93,49 @@ export default function Home() {
     (params: Connection) => setEdges((eds) => addEdge({ ...params, animated: true, style: { stroke: '#06b6d4' } }, eds)),
     [setEdges],
   );
+
+  // Handle adding individual agent from selector
+  const handleAddAgent = useCallback((node: Node) => {
+    setNodes((nds) => [...nds, node]);
+  }, [setNodes]);
+
+  // Handle adding a group of agents from selector
+  const handleAddGroup = useCallback((newNodes: Node[]) => {
+    setNodes((nds) => {
+      const updatedNodes = [...nds, ...newNodes];
+      return updatedNodes;
+    });
+
+    // Auto-connect beta readers: find the last editorial node and connect all new nodes to it
+    // Also connect all beta readers to a feedback aggregator if present
+    setEdges((eds) => {
+      const newEdges: Edge[] = [];
+
+      // Find potential source nodes (final-review, final-reviewer, etc.)
+      const sourceNode = nodes.find(n =>
+        n.data.role?.toLowerCase().includes('gatekeeper') ||
+        n.data.role?.toLowerCase().includes('reviewer') ||
+        n.data.name?.toLowerCase().includes('final')
+      );
+
+      if (sourceNode) {
+        // Connect each new beta reader to the source
+        newNodes.forEach((node, idx) => {
+          if (node.data.role === 'Beta Reader') {
+            newEdges.push({
+              id: `e-auto-${sourceNode.id}-${node.id}`,
+              source: sourceNode.id,
+              target: node.id,
+              animated: true,
+              style: { stroke: '#f59e0b', strokeWidth: 2 }
+            });
+          }
+        });
+      }
+
+      return [...eds, ...newEdges];
+    });
+  }, [nodes, setNodes, setEdges]);
 
   // Handle Node Selection
   const onNodeClick = useCallback((event: React.MouseEvent, node: Node) => {
@@ -293,7 +338,30 @@ export default function Home() {
           <p className="text-xs text-zinc-500 font-mono tracking-widest">INTERACTIVE WORKFLOW ENGINE</p>
         </div>
 
+        {/* Agent Selector Dropdown */}
+        <AgentSelector
+          onAddAgent={handleAddAgent}
+          onAddGroup={handleAddGroup}
+        />
 
+        {/* Run Workflow Button */}
+        <Button
+          onClick={runWorkflow}
+          disabled={isRunning}
+          className="bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white border-none"
+        >
+          {isRunning ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin" />
+              Running...
+            </>
+          ) : (
+            <>
+              <Play className="w-4 h-4" />
+              Run Workflow
+            </>
+          )}
+        </Button>
       </div>
 
       {/* Fetch Bin - Absolute Positioned */}

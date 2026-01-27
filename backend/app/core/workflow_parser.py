@@ -17,40 +17,46 @@ class WorkflowParser:
 
     def parse_graph(self) -> Crew:
         """
-        Main entry point. 
+        Main entry point.
         1. Creates Agents (with TELOS context from ~/.pai/)
-        2. Creates Tasks (and links them)
+        2. Creates Tasks (and links them via context parameter)
         3. Returns a Crew object ready for kickoff()
+
+        CRITICAL: Uses edge relationships to pass context between tasks.
+        If Librarian (Task A) -> Writer (Task B), then Task B receives
+        Task A's output via CrewAI's context parameter.
         """
-       
+
         # 1. Instantiate Agents from Nodes
         # We filter for nodes strictly of type 'agentNode'
         for node_id, node in self.nodes.items():
             if node.get('type') == 'agentNode':
                 self.agents_map[node_id] = self._create_agent(node['data'])
 
-        # 2. Instantiate Tasks & Link Dependencies
-        # In a sequential flow, Edges define the Task sequence.
+        # 2. Build dependency map from edges
+        # upstream_tasks[node_id] = list of node_ids that feed INTO this node
+        upstream_map: Dict[str, List[str]] = {node_id: [] for node_id in self.nodes}
+        for edge in self.edges:
+            source = edge.get('source')
+            target = edge.get('target')
+            if source and target and target in upstream_map:
+                upstream_map[target].append(source)
+
+        # 3. Instantiate Tasks & Link Dependencies via context
         # Node A -> Edge -> Node B means:
         # Task B depends on Task A (context from A is passed to B)
-        
-        # We need to sort tasks topologically or let CrewAI sequential process handle it.
-        # For v1, let's assume a simple list based on the edge flow.
-        
+
         tasks_list = []
-        
-        # Simple traversal for Sequential Process:
-        # Find start node (no incoming edges)
-        # Traverse down.
-        # (This logic would be more complex for Process.hierarchical)
+
+        # Sort topologically to ensure upstream tasks are created first
         sorted_node_ids = self._topological_sort()
-        
+
         for node_id in sorted_node_ids:
             if node_id in self.agents_map:
                 agent = self.agents_map[node_id]
                 node_data = self.nodes[node_id]['data']
-                
-                # Create the task
+
+                # Create the task description
                 task_description = (
                     node_data.get('prompt')
                     or node_data.get('goal')
@@ -63,12 +69,39 @@ class WorkflowParser:
                         "\n\nIMPORTANT: Use the available Google Drive tools to "
                         "perform the task. Return the tool output verbatim without "
                         "paraphrasing. If a tool returns IDs, include them in your "
-                        "final answer exactly as provided."
+                        "final answer exactly as provided. Wrap file IDs in "
+                        "<FETCHED_FILES>['id1', 'id2']</FETCHED_FILES> tags."
                     )
+
+                # Get upstream tasks whose output should be passed as context
+                upstream_node_ids = upstream_map.get(node_id, [])
+                context_tasks = [
+                    self.tasks_map[uid]
+                    for uid in upstream_node_ids
+                    if uid in self.tasks_map
+                ]
+
+                # Add context instruction to non-librarian agents that have upstream context
+                if context_tasks and 'librarian' not in role_name.lower():
+                    upstream_names = [
+                        self.nodes[uid]['data'].get('name', uid)
+                        for uid in upstream_node_ids
+                        if uid in self.nodes
+                    ]
+                    task_description += (
+                        f"\n\nCRITICAL: You MUST use the context provided by the "
+                        f"previous agent(s): {', '.join(upstream_names)}. "
+                        f"Their output contains the specific information you need. "
+                        f"Do NOT invent or hallucinate information that wasn't provided. "
+                        f"If the context mentions specific characters, files, or data, "
+                        f"use ONLY that information."
+                    )
+
                 task = Task(
                     description=task_description,
                     agent=agent,
-                    expected_output="Detailed analysis and execution results."
+                    expected_output="Detailed analysis and execution results.",
+                    context=context_tasks if context_tasks else None
                 )
                 tasks_list.append(task)
                 self.tasks_map[node_id] = task
