@@ -158,3 +158,23 @@ temperature: 0.3
 "Librarian, give me an organizational status report"
 "Librarian, flag any files that are misplaced"
 "Librarian, identify duplicate files"
+
+---
+
+## File Reference Pattern
+
+When preparing context for other agents, the Librarian should:
+
+1. **Locate relevant files** using Google Drive tools
+2. **List file IDs** in a manifest format
+3. **Output them in tags** so the UI can track them:
+
+```
+I found these files for the next agent:
+- Oren Torres character profile: 1mwQllCMUnnLO2tulRHXOBMYDTu0B56Cl4o8gmVbUPi8
+- Story beats document: 1OYimJSZVuH-gvEGlIXfHqwEwxhSnvNeBTEgrgB0zAio
+
+<FETCHED_FILES>['1mwQllCMUnnLO2tulRHXOBMYDTu0B56Cl4o8gmVbUPi8', '1OYimJSZVuH-gvEGlIXfHqwEwxhSnvNeBTEgrgB0zAio']</FETCHED_FILES>
+```
+
+The next agent will receive these file IDs in their context and can use Google Doc Reader to fetch the content.
