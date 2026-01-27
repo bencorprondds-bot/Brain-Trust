@@ -146,3 +146,52 @@ You are assisting: {context.identity}
     def invalidate_cache(self):
         """Force reload on next access."""
         self._cache = None
+
+
+class AgentPromptLoader:
+    """
+    Loads agent-specific prompts from backend/prompts/ directory.
+
+    Agent prompts define personality, capabilities, and behavioral guidelines
+    for specific agent roles (e.g., Librarian, Editor, Writer).
+    """
+
+    _prompts_cache: Dict[str, str] = {}
+
+    @classmethod
+    def get_prompts_dir(cls) -> Path:
+        """Get the prompts directory path."""
+        # Navigate from context_loader.py to backend/prompts/
+        return Path(__file__).parent.parent.parent / "prompts"
+
+    @classmethod
+    def load_prompt(cls, role: str) -> Optional[str]:
+        """
+        Load an agent prompt by role name.
+
+        Args:
+            role: The agent role (e.g., 'librarian', 'editor')
+
+        Returns:
+            The prompt content, or None if not found
+        """
+        role_lower = role.lower().strip()
+
+        # Check cache
+        if role_lower in cls._prompts_cache:
+            return cls._prompts_cache[role_lower]
+
+        prompts_dir = cls.get_prompts_dir()
+        prompt_file = prompts_dir / f"{role_lower}.md"
+
+        if prompt_file.exists():
+            content = prompt_file.read_text(encoding='utf-8').strip()
+            cls._prompts_cache[role_lower] = content
+            return content
+
+        return None
+
+    @classmethod
+    def invalidate_cache(cls):
+        """Clear the prompts cache."""
+        cls._prompts_cache = {}
