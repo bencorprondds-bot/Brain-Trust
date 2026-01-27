@@ -24,8 +24,8 @@ def main():
     
     # 1. Find a target document
     print("1. Searching for documents...")
-    # Hardcoded folder ID for 'Life with AI' found earlier
-    folder_id = "1duf6BRY-tqyWzP3gH1clfaM5" # Note: This ID was truncated in previous output, might need to re-fetch if this fails.
+    # Use the correct Shared Drive folder ID for 'in_development'
+    folder_id = "1_AcAlToFkwKwG34FLij54suGOiQ68p_d"  # 02_In_Development from Shared Drive
     # Actually, let's just search by name to be safe
     from googleapiclient.discovery import build
     from google.oauth2.service_account import Credentials

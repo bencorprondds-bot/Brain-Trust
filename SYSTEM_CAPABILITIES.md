@@ -14,14 +14,17 @@ This file is the **SOURCE OF TRUTH** for what the Brain Trust system can actuall
 
 ## ✅ Verified Integrations
 
-### 1. Google Drive (Librarian Agent)
-The system has full read/write access to the "Life with AI" Google Drive.
-- **Status**: Operational
+### 1. Google Drive (Librarian Agent) - Shared Drive
+The system has full read/write access to the "Life with AI" **Shared Drive** (not personal drive).
+- **Status**: Operational ✅
+- **Shared Drive ID**: `0AMpJ2pkSpYq-Uk9PVA`
 - **Key Capabilities**:
-  - List folders and files (`explore_drive.py`)
-  - Move files to organize them (`organize_drive.py`)
-  - Folder ID mapping for: `Inbox`, `Characters`, `World`, `Story_Drafts`
-- **Primary Agent**: The Librarian
+  - List folders and files on Shared Drive (`explore_drive.py`)
+  - Move files to organize them on Shared Drive (`organize_drive.py`)
+  - Create and edit documents on Shared Drive
+  - Folder ID mapping for all key pipeline stages
+- **Primary Agent**: The Librarian (Iris)
+- **Updated**: January 2026 - All tools now query Shared Drive exclusively
 
 ### 2. TELOS Context System
 The system loads personal user context from `~/.pai/context/`.

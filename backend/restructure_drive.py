@@ -11,18 +11,24 @@ from googleapiclient.discovery import build
 
 SCOPES = ['https://www.googleapis.com/auth/drive']
 
-# Known folder IDs from audit
+# Shared Drive Configuration
+SHARED_DRIVE_ID = '0AMpJ2pkSpYq-Uk9PVA'  # Life with AI Shared Drive
+
+# Known folder IDs from Shared Drive audit (Updated Jan 2026)
 FOLDERS = {
-    'Life with AI': '1duf6BRY-tqyWzP3gH1clfaM5B-Qqh0r5',
-    '01_Inbox': '1KzQODiGWI0DTsV6dEJHOGvniKx7nR8Ss',
-    '02_In_Development': '1fKYixOC9aDcm-XHAIHhfGj3rKlRg5b-i',
-    '03_Ready_for_Review': '1Zy2ocnE4EOwpeuvu8RFrNS_WophR4ebB',
-    '04_Published': '1buuMweoHEdo17_YdR9qgXw42dpNhgyR3',
-    '05_Voice_Library': '1zzD3HBIrjOAQ-L5a1WDsewroKaOzpie_',
-    'Agent_Prompts': '1u81lD6187CGxztciR_clM4rH-9TpM1TT',
-    'Reference_Docs': '1SKO7KfS3UUuwTiHQ1WYS0eBfVryR1Wxr',
-    'Workflows': '1ZGHfjdxIJPxOe_W_8iNskV9U5UkT0uAc',
-    'Images for the blog': '1y7yCgVcFsgWSTk4ZreuMBcgfJ91il6MO',
+    'system': '1_85nRX4isDeoshv98bFL3ARljJ4LTkT0',
+    'inbox': '1RKLpafuip4HgYj_bmuUfuj3ojZWNb1WZ',
+    'in_development': '1_AcAlToFkwKwG34FLij54suGOiQ68p_d',
+    'ready_for_review': '1va471qBT7Mogi4ymMz_zS6oW0DSQ3QJs',
+    'beta_readers': '1HwyGuQroOXsxQPJ1paCyTcdv6h14hPXs',
+    'published': '1SMKJVYbtUJdc0za5X9VD689tzo5A1-_o',
+    'voice_library': '1UuJOd9eM_V_jn4LH_pG_fybZOGcz4CEU',
+    'agent_prompts': '1JvMDwstlpXusW6lCSrRlVazCjJvtnA_Y',
+    'reference_docs': '1rso6i2_mRFSOKmLC19EL6JtT2h1xzc2M',
+    'workflows': '10NH-ufIi7PNNVL6SFW5ClgAJ5j2tM4iv',
+    'characters': '1TNzmGFe28yzga77O34YoF_m0F1WMzcbL',
+    'style_guides': '1C9nV3VsO19MzcLq0B2CE4G1_1m-1W0V0',
+    'world': '1Iik6DK8RDsLw-nBRTwaaJ3A8c3dP1RZP',
 }
 
 # Files to move

@@ -1,5 +1,5 @@
 """
-Test script to verify Google Docs API read/write access.
+Test script to verify Google Docs API read/write access on Shared Drive.
 Lists documents in the folder and tests editing an existing one.
 
 NOTE: Service accounts have storage quota limits - they can EDIT existing 
@@ -15,6 +15,9 @@ SCOPES = [
     'https://www.googleapis.com/auth/documents'
 ]
 
+# Shared Drive Configuration
+SHARED_DRIVE_ID = '0AMpJ2pkSpYq-Uk9PVA'
+
 def main():
     creds_path = os.path.join(os.path.dirname(__file__), 'credentials.json')
     creds = Credentials.from_service_account_file(creds_path, scopes=SCOPES)
@@ -22,9 +25,13 @@ def main():
     drive = build('drive', 'v3', credentials=creds)
     docs = build('docs', 'v1', credentials=creds)
     
-    print("1. Finding 'Life with AI' folder...")
+    print("1. Finding 'Life with AI' folder in Shared Drive...")
     results = drive.files().list(
         q="name='Life with AI' and mimeType='application/vnd.google-apps.folder'",
+        corpora='drive',
+        driveId=SHARED_DRIVE_ID,
+        includeItemsFromAllDrives=True,
+        supportsAllDrives=True,
         fields='files(id, name)'
     ).execute()
     
@@ -39,6 +46,10 @@ def main():
     print("\n2. Listing Google Docs in folder...")
     docs_list = drive.files().list(
         q=f"'{folder_id}' in parents and mimeType='application/vnd.google-apps.document'",
+        corpora='drive',
+        driveId=SHARED_DRIVE_ID,
+        includeItemsFromAllDrives=True,
+        supportsAllDrives=True,
         fields='files(id, name)',
         pageSize=10
     ).execute()

@@ -1,4 +1,4 @@
-"""Comprehensive audit of Life with AI Google Drive folder structure."""
+"""Comprehensive audit of Life with AI Shared Drive folder structure."""
 import os
 import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -8,14 +8,21 @@ from googleapiclient.discovery import build
 
 SCOPES = ['https://www.googleapis.com/auth/drive']
 
+# Shared Drive Configuration
+SHARED_DRIVE_ID = '0AMpJ2pkSpYq-Uk9PVA'  # Life with AI Shared Drive
+
 def get_all_files(service, folder_id=None, path=""):
-    """Recursively get all files and folders."""
+    """Recursively get all files and folders from Shared Drive."""
     query = "trashed = false"
     if folder_id:
         query = f"'{folder_id}' in parents and trashed = false"
     
     results = service.files().list(
         q=query,
+        corpora='drive',
+        driveId=SHARED_DRIVE_ID,
+        includeItemsFromAllDrives=True,
+        supportsAllDrives=True,
         pageSize=100,
         fields="files(id, name, mimeType, parents, modifiedTime, size)"
     ).execute()

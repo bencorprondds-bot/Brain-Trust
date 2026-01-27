@@ -8,6 +8,22 @@ from googleapiclient.discovery import build
 # Scopes
 SCOPES = ['https://www.googleapis.com/auth/drive', 'https://www.googleapis.com/auth/documents']
 
+# Shared Drive Configuration
+SHARED_DRIVE_ID = '0AMpJ2pkSpYq-Uk9PVA'  # Life with AI Shared Drive
+
+# Folder IDs (from Life with AI Shared Drive - Updated Jan 2026)
+FOLDER_IDS = {
+    'in_development': '1_AcAlToFkwKwG34FLij54suGOiQ68p_d',  # 02_In_Development
+    'inbox': '1RKLpafuip4HgYj_bmuUfuj3ojZWNb1WZ',           # 01_Inbox
+    'ready_for_review': '1va471qBT7Mogi4ymMz_zS6oW0DSQ3QJs', # 03_Ready_for_Review
+    'published': '1SMKJVYbtUJdc0za5X9VD689tzo5A1-_o',       # 04_Published
+    'characters': '1TNzmGFe28yzga77O34YoF_m0F1WMzcbL',      # Characters
+    'reference_docs': '1rso6i2_mRFSOKmLC19EL6JtT2h1xzc2M',  # Reference_Docs
+    'agent_prompts': '1JvMDwstlpXusW6lCSrRlVazCjJvtnA_Y',   # Agent_Prompts
+    'workflows': '10NH-ufIi7PNNVL6SFW5ClgAJ5j2tM4iv',       # Workflows
+    'world': '1Iik6DK8RDsLw-nBRTwaaJ3A8c3dP1RZP',          # World
+}
+
 class DriveAuth:
     """Helper to authenticate with Google Drive"""
     @staticmethod
@@ -41,19 +57,31 @@ class DriveListTool(BaseTool):
             creds = DriveAuth.authenticate()
             service = build('drive', 'v3', credentials=creds)
             
-            # For service accounts, 'root' means "list all shared files"
+            # Query shared drive with proper support for all drives
             if folder_id.lower() in ['root', 'all', '']:
-                # List all files accessible to service account
+                # List all files from Shared Drive
                 query = "trashed = false"
+                results = service.files().list(
+                    q=query,
+                    corpora='drive',
+                    driveId=SHARED_DRIVE_ID,
+                    includeItemsFromAllDrives=True,
+                    supportsAllDrives=True,
+                    pageSize=50,
+                    fields="nextPageToken, files(id, name, mimeType, parents)"
+                ).execute()
             else:
-                # List files in specific folder
+                # List files in specific folder on Shared Drive
                 query = f"'{folder_id}' in parents and trashed = false"
-            
-            results = service.files().list(
-                q=query,
-                pageSize=50,  # Increased for better coverage
-                fields="nextPageToken, files(id, name, mimeType, parents)"
-            ).execute()
+                results = service.files().list(
+                    q=query,
+                    corpora='drive',
+                    driveId=SHARED_DRIVE_ID,
+                    includeItemsFromAllDrives=True,
+                    supportsAllDrives=True,
+                    pageSize=50,
+                    fields="nextPageToken, files(id, name, mimeType, parents)"
+                ).execute()
             items = results.get('files', [])
 
             if not items:
@@ -126,14 +154,14 @@ class DriveWriteTool(BaseTool):
             docs_service = build('docs', 'v1', credentials=creds)
             drive_service = build('drive', 'v3', credentials=creds)
             
-            # Target Folder ID for '02_In_Development'
-            TARGET_FOLDER_ID = '1fKYixOC9aDcm-XHAIHhfGj3rKlRg5b-i'
+            # Use Shared Drive folder ID for '02_In_Development'
+            target_folder = FOLDER_IDS.get('in_development', '1_AcAlToFkwKwG34FLij54suGOiQ68p_d')
             
             # 1. Prepare Metadata
             file_metadata = {
                 'name': title,
                 'mimeType': 'application/vnd.google-apps.document',
-                'parents': [TARGET_FOLDER_ID]
+                'parents': [target_folder]
             }
             
             # 2. Create via Upload Bypass
@@ -143,6 +171,7 @@ class DriveWriteTool(BaseTool):
             doc = drive_service.files().create(
                 body=file_metadata,
                 media_body=media,
+                supportsAllDrives=True,
                 fields='id'
             ).execute()
             
@@ -162,7 +191,7 @@ class DriveWriteTool(BaseTool):
                 ]
                 docs_service.documents().batchUpdate(documentId=doc_id, body={'requests': requests}).execute()
             
-            return f"Successfully created document '{title}' in 'In_Development' (ID: {doc_id})"
+            return f"Successfully created document '{title}' in 'In_Development' Shared Drive folder (ID: {doc_id})"
         except Exception as e:
             return f"Error creating doc: {str(e)}"
 

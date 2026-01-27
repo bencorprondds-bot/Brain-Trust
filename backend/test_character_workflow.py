@@ -1,9 +1,9 @@
 """
 Multi-Agent Simulation: Librarian + Editor
-Goal: Create/Edit a Character Profile for 'Nexus' in the correct folder.
+Goal: Create/Edit a Character Profile for 'Nexus' in the correct folder on Shared Drive.
 
 Workflow:
-1. Librarian (Iris): Locates 'Life with AI/02_In_Development/Characters'.
+1. Librarian (Iris): Locates 'Life with AI/02_In_Development/Characters' in Shared Drive.
 2. Editor: Checks for 'Nexus_Profile' doc in that folder.
 3. Editor: If found, reads -> appends -> checks style.
           If not found, prompts User to create it (due to Service Account quota).
@@ -23,6 +23,9 @@ except ImportError as e:
     print(f"Error importing skills: {e}")
     sys.exit(1)
 
+# Shared Drive Configuration
+SHARED_DRIVE_ID = '0AMpJ2pkSpYq-Uk9PVA'
+
 def get_drive_service():
     drive, _, error = story_writer.get_services()
     if error:
@@ -31,44 +34,65 @@ def get_drive_service():
     return drive
 
 def librarian_find_folder(drive, parent_id, folder_name):
-    """Librarian searches for a specific folder within a parent."""
+    """Librarian searches for a specific folder within a parent on Shared Drive."""
     query = f"'{parent_id}' in parents and mimeType='application/vnd.google-apps.folder' and name='{folder_name}' and trashed=false"
-    results = drive.files().list(q=query, fields='files(id, name)').execute()
+    results = drive.files().list(
+        q=query,
+        corpora='drive',
+        driveId=SHARED_DRIVE_ID,
+        includeItemsFromAllDrives=True,
+        supportsAllDrives=True,
+        fields='files(id, name)'
+    ).execute()
     files = results.get('files', [])
     if files:
         return files[0]
     return None
 
 def editor_find_doc(drive, parent_id, doc_name):
-    """Editor searches for a document."""
+    """Editor searches for a document on Shared Drive."""
     query = f"'{parent_id}' in parents and mimeType='application/vnd.google-apps.document' and name='{doc_name}' and trashed=false"
-    results = drive.files().list(q=query, fields='files(id, name)').execute()
+    results = drive.files().list(
+        q=query,
+        corpora='drive',
+        driveId=SHARED_DRIVE_ID,
+        includeItemsFromAllDrives=True,
+        supportsAllDrives=True,
+        fields='files(id, name)'
+    ).execute()
     files = results.get('files', [])
     if files:
         return files[0]
     return None
 
 def main():
-    print("🤖 SIMULATION: Librarian (Iris) + Editor Agents")
-    print("==============================================")
+    print("🤖 SIMULATION: Librarian (Iris) + Editor Agents on Shared Drive")
+    print("==============================================================")
     
     drive = get_drive_service()
     
     # --- PHASE 1: LIBRARIAN ---
-    print("\n[Librarian] 🔎 Locating 'Life with AI' root...")
+    print("\n[Librarian] 🔎 Locating 'Life with AI' root on Shared Drive...")
     # Find Root
     root = librarian_find_folder(drive, 'root', 'Life with AI')
     
-    # Fallback: Search blindly if not in root (shared with me)
+    # Fallback: Search blindly if not in root (shared drive)
     if not root:
-        results = drive.files().list(q="name='Life with AI' and mimeType='application/vnd.google-apps.folder'", fields='files(id, name)').execute()
+        results = drive.files().list(
+            q="name='Life with AI' and mimeType='application/vnd.google-apps.folder'",
+            corpora='drive',
+            driveId=SHARED_DRIVE_ID,
+            includeItemsFromAllDrives=True,
+            supportsAllDrives=True,
+            fields='files(id, name)'
+        ).execute()
         files = results.get('files', [])
         if files: result = files[0]
         else: result = None
         root = result
 
     if not root:
-        print("❌ [Librarian] Critical: 'Life with AI' folder not found.")
+        print("❌ [Librarian] Critical: 'Life with AI' folder not found on Shared Drive.")
         return
 
     print(f"✅ Found Root: {root['name']} ({root['id']})")
