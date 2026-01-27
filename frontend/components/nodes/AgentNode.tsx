@@ -1,6 +1,6 @@
 import React, { memo } from 'react';
 import { Handle, Position, NodeProps } from 'reactflow';
-import { Bot, Loader2, CheckCircle2, Play, TriangleAlert } from 'lucide-react';
+import { Bot, Loader2, CheckCircle2, Play, TriangleAlert, GripVertical } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
@@ -19,9 +19,20 @@ interface AgentData {
     currentTool?: string;
     model: string;
     files?: string[];
+    presetId?: string; // Track which preset this node came from
 }
 
-const AgentNode = ({ data, selected }: NodeProps<AgentData>) => {
+const AgentNode = ({ data, selected, id }: NodeProps<AgentData>) => {
+    // Handle drag start for removing node (drag to dropdown)
+    const handleDragStart = (e: React.DragEvent) => {
+        e.dataTransfer.setData('application/json', JSON.stringify({
+            type: 'remove-agent',
+            nodeId: id,
+            presetId: data.presetId
+        }));
+        e.dataTransfer.effectAllowed = 'move';
+    };
+
     return (
         <div className={cn(
             "relative group transition-all duration-300",
@@ -44,6 +55,21 @@ const AgentNode = ({ data, selected }: NodeProps<AgentData>) => {
                 />
 
                 <CardHeader className="pb-2 pt-3 px-4 flex flex-row items-center justify-between space-y-0">
+                    {/* Drag handle for removing - drag this to dropdown to remove */}
+                    <div
+                        draggable
+                        onDragStart={handleDragStart}
+                        className={cn(
+                            "absolute -left-1 top-1/2 -translate-y-1/2 p-1 rounded-l",
+                            "opacity-0 group-hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing",
+                            "bg-zinc-800 hover:bg-red-950 hover:text-red-400 border-r border-zinc-700",
+                            "flex items-center justify-center"
+                        )}
+                        title="Drag to remove"
+                    >
+                        <GripVertical className="w-3 h-3" />
+                    </div>
+
                     <div className="flex items-center gap-2">
                         <div className={cn(
                             "p-1.5 rounded-md bg-zinc-900 border border-zinc-700",

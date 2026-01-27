@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useState, useRef } from 'react';
 import ReactFlow, {
   Background,
   Controls,
@@ -11,6 +11,7 @@ import ReactFlow, {
   Connection,
   Node,
   Edge,
+  ReactFlowInstance,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import { Play, Loader2 } from 'lucide-react';
@@ -20,6 +21,7 @@ import AgentNode from '@/components/nodes/AgentNode';
 import ChatInterface, { Message } from '@/components/ChatInterface';
 import FetchBin from '@/components/FetchBin';
 import AgentSelector from '@/components/AgentSelector';
+import { presetToNode } from '@/lib/agent-presets';
 
 const nodeTypes = {
   agentNode: AgentNode,
@@ -28,7 +30,7 @@ const nodeTypes = {
 // Initial State: Life with AI - Editorial Pipeline
 const initialNodes = [
   {
-    id: '1',
+    id: 'librarian-init',
     type: 'agentNode',
     position: { x: 50, y: 100 },
     data: {
@@ -38,25 +40,27 @@ const initialNodes = [
       backstory: 'A meticulous file navigator who directs other agents to the resources they need.',
       status: 'idle',
       model: 'gemini-2.0-flash',
-      files: [] as string[]
+      files: [] as string[],
+      presetId: 'librarian', // Track which preset this came from
     },
   },
   {
-    id: '2',
+    id: 'first-draft-init',
     type: 'agentNode',
     position: { x: 400, y: 100 },
     data: {
-      name: 'First Draft',
+      name: 'First Draft Writer',
       role: 'Creative Writer',
       goal: 'First, read any files provided in the context. Then write a compelling scene using the character profile and story materials provided by the Librarian.',
       backstory: 'A creative fiction writer.',
       status: 'idle',
       model: 'gemini-2.0-flash',
-      files: [] as string[]
+      files: [] as string[],
+      presetId: 'first-draft',
     },
   },
   {
-    id: '3',
+    id: 'dev-editor-init',
     type: 'agentNode',
     position: { x: 750, y: 100 },
     data: {
@@ -66,20 +70,27 @@ const initialNodes = [
       backstory: 'A critical editor focused on story arcs.',
       status: 'idle',
       model: 'claude-3-5-sonnet',
-      files: [] as string[]
+      files: [] as string[],
+      presetId: 'dev-editor',
     },
   },
 ];
 
 const initialEdges = [
-  { id: 'e1-2', source: '1', target: '2', animated: true, style: { stroke: '#06b6d4', strokeWidth: 2 } },
-  { id: 'e2-3', source: '2', target: '3', animated: true, style: { stroke: '#06b6d4', strokeWidth: 2 } },
+  { id: 'e1-2', source: 'librarian-init', target: 'first-draft-init', animated: true, style: { stroke: '#06b6d4', strokeWidth: 2 } },
+  { id: 'e2-3', source: 'first-draft-init', target: 'dev-editor-init', animated: true, style: { stroke: '#06b6d4', strokeWidth: 2 } },
 ];
+
+// Initial preset IDs on canvas
+const initialPresetsOnCanvas = ['librarian', 'first-draft', 'dev-editor'];
 
 export default function Home() {
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
   const [isRunning, setIsRunning] = useState(false);
+  const [agentsOnCanvas, setAgentsOnCanvas] = useState<string[]>(initialPresetsOnCanvas);
+  const reactFlowWrapper = useRef<HTMLDivElement>(null);
+  const [reactFlowInstance, setReactFlowInstance] = useState<ReactFlowInstance | null>(null);
 
   // Chat State
   const [messages, setMessages] = useState<Message[]>([]);
@@ -94,20 +105,44 @@ export default function Home() {
     [setEdges],
   );
 
-  // Handle adding individual agent from selector
-  const handleAddAgent = useCallback((node: Node) => {
-    setNodes((nds) => [...nds, node]);
+  // Handle adding individual agent from selector (click or drag)
+  const handleAddAgent = useCallback((node: Node, presetId: string) => {
+    // Add presetId to node data for tracking
+    const nodeWithPreset = {
+      ...node,
+      data: { ...node.data, presetId }
+    };
+    setNodes((nds) => [...nds, nodeWithPreset]);
+    setAgentsOnCanvas((prev) => [...prev, presetId]);
   }, [setNodes]);
 
+  // Handle removing agent from canvas (dropped back to selector)
+  const handleRemoveAgent = useCallback((nodeId: string) => {
+    // Find the node to get its presetId
+    const nodeToRemove = nodes.find(n => n.id === nodeId);
+    if (nodeToRemove?.data?.presetId) {
+      setAgentsOnCanvas((prev) => prev.filter(id => id !== nodeToRemove.data.presetId));
+    }
+    // Remove the node
+    setNodes((nds) => nds.filter(n => n.id !== nodeId));
+    // Remove any edges connected to this node
+    setEdges((eds) => eds.filter(e => e.source !== nodeId && e.target !== nodeId));
+    // Deselect if selected
+    setSelectedNodeIds((prev) => prev.filter(id => id !== nodeId));
+  }, [nodes, setNodes, setEdges]);
+
   // Handle adding a group of agents from selector
-  const handleAddGroup = useCallback((newNodes: Node[]) => {
-    setNodes((nds) => {
-      const updatedNodes = [...nds, ...newNodes];
-      return updatedNodes;
-    });
+  const handleAddGroup = useCallback((newNodes: Node[], presetIds: string[]) => {
+    // Add presetId to each node's data
+    const nodesWithPresets = newNodes.map((node, idx) => ({
+      ...node,
+      data: { ...node.data, presetId: presetIds[idx] }
+    }));
+
+    setNodes((nds) => [...nds, ...nodesWithPresets]);
+    setAgentsOnCanvas((prev) => [...prev, ...presetIds]);
 
     // Auto-connect beta readers: find the last editorial node and connect all new nodes to it
-    // Also connect all beta readers to a feedback aggregator if present
     setEdges((eds) => {
       const newEdges: Edge[] = [];
 
@@ -120,7 +155,7 @@ export default function Home() {
 
       if (sourceNode) {
         // Connect each new beta reader to the source
-        newNodes.forEach((node, idx) => {
+        nodesWithPresets.forEach((node) => {
           if (node.data.role === 'Beta Reader') {
             newEdges.push({
               id: `e-auto-${sourceNode.id}-${node.id}`,
@@ -327,6 +362,50 @@ export default function Home() {
     .filter(n => selectedNodeIds.includes(n.id))
     .map(n => ({ name: n.data.name, id: n.id }));
 
+  // Handle dropping an agent from the dropdown onto the canvas
+  const onDragOver = useCallback((event: React.DragEvent) => {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'copy';
+  }, []);
+
+  const onDrop = useCallback((event: React.DragEvent) => {
+    event.preventDefault();
+
+    if (!reactFlowInstance || !reactFlowWrapper.current) return;
+
+    try {
+      const data = JSON.parse(event.dataTransfer.getData('application/json'));
+
+      if (data.type === 'add-agent' && data.agent) {
+        // Calculate drop position in flow coordinates
+        const bounds = reactFlowWrapper.current.getBoundingClientRect();
+        const position = reactFlowInstance.screenToFlowPosition({
+          x: event.clientX - bounds.left,
+          y: event.clientY - bounds.top,
+        });
+
+        const node = presetToNode(data.agent, position);
+        handleAddAgent(node, data.agent.id);
+      }
+    } catch (err) {
+      // Not valid drop data
+    }
+  }, [reactFlowInstance, handleAddAgent]);
+
+  // Handle starting a drag from a canvas node (to remove it)
+  const onNodeDragStart = useCallback((event: React.MouseEvent, node: Node) => {
+    // Set data for potential drop on selector
+    const dragEvent = event.nativeEvent as unknown as DragEvent;
+    if (dragEvent.dataTransfer) {
+      dragEvent.dataTransfer.setData('application/json', JSON.stringify({
+        type: 'remove-agent',
+        nodeId: node.id,
+        presetId: node.data.presetId
+      }));
+      dragEvent.dataTransfer.effectAllowed = 'move';
+    }
+  }, []);
+
   return (
     <div className="w-screen h-screen bg-zinc-950 text-zinc-50 overflow-hidden relative">
       {/* Header Controls - Top Layer (z-30) */}
@@ -342,6 +421,8 @@ export default function Home() {
         <AgentSelector
           onAddAgent={handleAddAgent}
           onAddGroup={handleAddGroup}
+          onRemoveAgent={handleRemoveAgent}
+          agentsOnCanvas={agentsOnCanvas}
         />
 
         {/* Run Workflow Button */}
@@ -368,20 +449,29 @@ export default function Home() {
       <FetchBin files={fetchedFiles} />
 
       {/* Canvas Layer - Bottom (z-0) */}
-      <div className="absolute inset-0 z-0">
+      <div
+        ref={reactFlowWrapper}
+        className="absolute inset-0 z-0"
+        onDrop={onDrop}
+        onDragOver={onDragOver}
+      >
         <ReactFlow
           nodes={nodes.map(n => ({
             ...n,
             // Highlight logic: Silver if selected
             style: selectedNodeIds.includes(n.id)
               ? { ...n.style, border: '2px solid #e4e4e7', boxShadow: '0 0 20px rgba(228,228,231,0.6)' }
-              : n.style
+              : n.style,
+            // Make nodes draggable for removal
+            draggable: true,
           }))}
           edges={edges}
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
           onNodeClick={onNodeClick}
+          onNodeDragStart={onNodeDragStart}
+          onInit={setReactFlowInstance}
           nodeTypes={nodeTypes}
           fitView
           className="bg-zinc-950"
