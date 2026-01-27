@@ -48,7 +48,7 @@ const initialNodes = [
     data: {
       name: 'First Draft',
       role: 'Creative Writer',
-      goal: 'First, read any files provided in the context. Then write a scene where Oren discovers the Ghost code, using that context.',
+      goal: 'First, read any files provided in the context. Then write a compelling scene using the character profile and story materials provided by the Librarian.',
       backstory: 'A creative fiction writer.',
       status: 'idle',
       model: 'gemini-2.0-flash',
