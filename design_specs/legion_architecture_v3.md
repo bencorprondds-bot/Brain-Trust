@@ -75,21 +75,20 @@ Legion v3 is an **Execution Engine** — you state what you want, the system fig
 
 ---
 
-## The Executive AI (Codename TBD)
+## The Executive AI: Willow
 
-> Note: ARIA remains dedicated to Life with AI creative project. The Executive AI is a new, distinct entity.
+> Note: ARIA remains dedicated to Life with AI creative project. Willow is the Executive Conductor — a distinct entity focused on orchestration, not creative direction.
 
-### Suggested Names (for discussion)
-- **NEXUS** — The connection point
-- **PRISM** — Refracts intent into action
-- **CIPHER** — Decodes intent, encodes execution
-- **HERALD** — Announces and coordinates
-- **AXIS** — The central point around which all rotates
+### Why "Willow"
+- Flexible yet strong — bends without breaking
+- Deep roots — connected to everything in the system
+- Provides shelter — shields user from complexity
+- Organic growth — adapts and expands naturally
 
 ### Profile Template
 
 ```yaml
-name: [TBD]
+name: Willow
 role: Executive Conductor
 model: claude-opus-4-5-20251101  # Frontier model for complex orchestration
 
@@ -351,12 +350,14 @@ Defined concrete output types per project:
 
 ### Coloring Book (with daughter)
 - **Outputs**: Completed coloring pages, print-ready PDFs, sales/distribution
-- **Quality Gate**: Daughter's approval + print quality check
+- **Quality Gate**: Daughter's approval (relayed by user) + print quality check
+- **Feedback Capture**: User relays daughter's reactions; Willow logs and learns patterns
 - **Team**: Production Team + [Art Generation Agent - TBD]
 
 ### Diamond Age Primer
 - **Outputs**: Code (React/interactive), positive feedback from daughter
-- **Quality Gate**: Daughter engagement metrics, code review
+- **Quality Gate**: Daughter engagement (relayed by user), code review
+- **Feedback Capture**: User describes daughter's reactions; patterns inform future iterations
 - **Team**: Technical Team
 
 ### Life with AI Idle Game
@@ -399,23 +400,31 @@ Defined concrete output types per project:
 
 ## Notification System
 
-Executive AI can reach user outside the app:
+Willow can reach user outside the app via Discord (primary channel).
 
 ### Channels
-- **Slack** (via MCP)
-- **Discord** (via MCP)
-- **Email** (future)
-- **SMS** (future, for critical)
+- **Discord** (via MCP) — Primary channel for all notifications
+  - Supports bidirectional communication (user can respond)
+  - Status updates, approvals, and feedback all flow through Discord
+- **Email** (future) — Daily digests, non-urgent summaries
+- **SMS** (future, for critical blockers only)
+
+### Discord Capabilities Required
+- Send messages to user
+- Receive responses from user
+- Support approval/rejection workflows (reactions or replies)
+- Status update requests ("What's the status on X?")
 
 ### Notification Types
 
 | Type | Urgency | Channel | Example |
 |------|---------|---------|---------|
-| Approval Needed | Medium | Slack | "Story ready for review" |
-| Blocker | High | Slack + Discord | "Can't proceed without direction on X" |
-| Daily Digest | Low | Email/Slack | "Today's escalation summary" |
-| Completion | Low | Slack | "Coloring book pages ready" |
-| Critical Gap | High | All | "Missing critical capability for deadline" |
+| Approval Needed | Medium | Discord | "Story ready for review" |
+| Blocker | High | Discord | "Can't proceed without direction on X" |
+| Daily Digest | Low | Discord | "Today's escalation summary" |
+| Completion | Low | Discord | "Coloring book pages ready" |
+| Critical Gap | High | Discord | "Missing critical capability for deadline" |
+| Status Response | On-demand | Discord | Response to "What's the status?" |
 
 ---
 
@@ -504,6 +513,86 @@ Activated via "Show Details" or hotkey (Cmd+D):
 
 ---
 
+## CLI Interface
+
+Legion should be operable from the command line, not just the web UI.
+
+### Design Principles
+- Same capabilities as web UI
+- Direct interaction with Willow
+- Suitable for scripting and automation
+- Works alongside web UI (shared state)
+
+### Command Structure
+
+```bash
+# Start interactive session with Willow
+legion
+
+# Or with initial intent
+legion "I want to finish editing chapter 3"
+
+# Status check
+legion status
+legion status --project life_with_ai
+
+# Approve pending items
+legion approve                    # Interactive selection
+legion approve --id <output_id>   # Direct approval
+legion approve --all              # Approve all pending
+
+# View execution details
+legion logs
+legion logs --today
+legion logs --execution <id>
+
+# Capability management
+legion capabilities               # List all
+legion gaps                       # Show capability gaps
+legion agents                     # List all agents
+
+# Project context
+legion projects                   # List projects
+legion project life_with_ai       # Switch context
+
+# Configuration
+legion config                     # Show config
+legion config discord.channel <id>  # Set Discord channel
+```
+
+### Interactive Mode
+
+```
+$ legion
+┌─────────────────────────────────────────┐
+│  LEGION CLI                             │
+│  Connected to Willow                    │
+└─────────────────────────────────────────┘
+
+Willow: Ready. What shall we build today?
+
+> I want to review what shipped this week
+
+Willow: This week you approved:
+  1. "The Morning After" - Chapter 1 revision (Life with AI)
+  2. Diamond Age: Navigation component refactor
+
+  Would you like details on any of these?
+
+> Show me the details on the navigation refactor
+
+Willow: [Opens debug view or prints execution log]
+...
+```
+
+### Implementation Notes
+- Built with Python (Click or Typer for CLI framework)
+- Shares backend with web UI (same FastAPI endpoints)
+- State persisted in same database
+- WebSocket connection for real-time updates during execution
+
+---
+
 ## Migration Path
 
 ### Phase 1: Foundation
@@ -538,13 +627,20 @@ Activated via "Show Details" or hotkey (Cmd+D):
 
 ---
 
+## Resolved Decisions
+
+| Decision | Resolution |
+|----------|------------|
+| Executive AI Name | **Willow** |
+| Daughter Feedback | Relayed through user; Willow logs patterns |
+| Notification Channel | **Discord** (primary, bidirectional) |
+| Legacy Workflows | None — clean slate, full retooling |
+
 ## Open Questions
 
-1. **Executive AI Name**: What should we call the Conductor?
-2. **Daughter Involvement**: How do we capture her feedback for Diamond Age/Coloring Book quality gates?
-3. **External Notifications**: Slack vs Discord vs both? Need MCP server setup.
-4. **Legacy Workflows**: Do existing React Flow workflows need migration path?
-5. **Multi-project Context**: How does Executive AI handle concurrent projects?
+1. **Multi-project Context**: How does Willow handle concurrent projects? (Separate contexts? Unified view?)
+2. **Discord MCP Setup**: Which Discord MCP server to use? Configuration requirements?
+3. **Parallel Claude Instance**: Another Claude is working on this codebase — need coordination strategy
 
 ---
 
