@@ -1,10 +1,12 @@
 from typing import List, Dict, Any, Optional
 from crewai import Agent, Task, Crew, Process
 from langchain_community.tools import DuckDuckGoSearchRun
-# Import other tools...
 
 # Semantic Router for intelligent model selection
 from app.core.semantic_router import SemanticRouter, get_router
+
+# Tool Registry for provider-agnostic tool management
+from app.tools import get_registry
 
 class WorkflowParser:
     """
@@ -186,38 +188,23 @@ class WorkflowParser:
 
         llm = self._create_llm(model_name)
         
-        # Initialize tools list - prioritize CrewAI tools over scripts
-        tools = []
-        
-        # Add role-specific CrewAI tools FIRST (agents try tools in order)
-        if 'librarian' in data.get('role', '').lower():
-            from app.tools.drive_tool import (
-                DriveListTool, DriveReadTool, DriveWriteTool, 
-                FindFolderTool, DocsEditTool, WordDocExportTool
-            )
-            tools.extend([
-                DriveListTool(), 
-                DriveReadTool(), 
-                DriveWriteTool(), 
-                FindFolderTool(),
-                DocsEditTool(),
-                WordDocExportTool()
-            ])
-        
-        # Add writer/editor tools
-        if any(keyword in data.get('role', '').lower() for keyword in ['writer', 'editor', 'creative']):
-            from app.tools.drive_tool import DocsEditTool, DriveReadTool, WordDocExportTool, CachedFileReadTool
-            tools.extend([DocsEditTool(), DriveReadTool(), WordDocExportTool(), CachedFileReadTool()])
+        # Initialize tools list using the Tool Registry
+        # The registry provides role-based tool selection via adapters
+        role_name = data.get('role', '')
+        tool_registry = get_registry()
 
-        # Add CachedFileReadTool to all agents (so they can read large cached documents)
-        # This is safe to add multiple times as CrewAI dedupes by tool name
-        from app.tools.drive_tool import CachedFileReadTool
-        if not any(t.name == "Cached File Reader" for t in tools):
-            tools.append(CachedFileReadTool())
-        
-        # Load script tools LAST (fallback only)
-        registry = ScriptRegistry()
-        script_tools = registry.get_tools()
+        # Get tools for this role from the registry (converted to CrewAI format)
+        tools = tool_registry.get_for_adapter("crewai", role=role_name)
+
+        # Ensure CachedFileReadTool is available to all agents
+        # (so they can read large cached documents from upstream agents)
+        if not any(getattr(t, 'name', '') == "Cached File Reader" for t in tools):
+            cached_tool = tool_registry.get_for_adapter("crewai", tool_ids=["cached_file_read"])
+            tools.extend(cached_tool)
+
+        # Load script tools as fallback (from ~/.pai/skills/)
+        script_tool_registry = ScriptRegistry()
+        script_tools = script_tool_registry.get_tools()
         tools.extend(script_tools)
 
         agent_kwargs = {
