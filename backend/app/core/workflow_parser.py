@@ -12,14 +12,18 @@ class WorkflowParser:
     Translates visual React Flow JSON into executable CrewAI objects.
     """
 
-    def __init__(self, workflow_json: Dict[str, Any], auto_route: bool = False):
+    def __init__(self, workflow_json: Dict[str, Any], auto_route: bool = True):
         """
         Initialize the workflow parser.
 
         Args:
             workflow_json: React Flow graph data with nodes and edges
-            auto_route: If True, use semantic router for model selection.
-                       If False, use model specified in node data (default).
+            auto_route: If True (default), use semantic router for model selection.
+                       If False, use model specified in node data.
+
+        Note: As of v2.5, auto_route=True is the default. The semantic router
+        selects optimal models based on task requirements, costs, and capabilities.
+        Manual model selection is still available as an override.
         """
         self.nodes = {n['id']: n for n in workflow_json.get('nodes', [])}
         self.edges = workflow_json.get('edges', [])

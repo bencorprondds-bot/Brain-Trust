@@ -3,6 +3,11 @@
  *
  * This file contains all predefined agents that can be added to workflows.
  * Agents are organized by category for easy selection.
+ *
+ * NOTE: As of v2.5, model selection is handled by the Semantic Router.
+ * The 'model' field is optional and serves as an override only.
+ * When omitted or set to 'auto', the router selects the optimal model
+ * based on task requirements, costs, and capabilities.
  */
 
 export interface AgentPreset {
@@ -11,7 +16,7 @@ export interface AgentPreset {
   role: string;
   goal: string;
   backstory: string;
-  model: string;
+  model?: string; // Optional - 'auto' or omitted uses semantic router
   category: 'core' | 'editorial' | 'beta-reader';
 }
 
@@ -30,7 +35,7 @@ export const coreAgents: AgentPreset[] = [
     role: 'Librarian',
     goal: 'Find relevant files in Google Drive and output them in <FETCHED_FILES> format for other agents to use.',
     backstory: 'A meticulous file navigator who directs other agents to the resources they need. You excel at searching, organizing, and retrieving documents from Google Drive.',
-    model: 'gemini-2.0-flash',
+    // model: auto-selected by semantic router (tool_use capability, prefer fast)
     category: 'core',
   },
 ];
@@ -43,7 +48,7 @@ export const editorialAgents: AgentPreset[] = [
     role: 'Creative Writer',
     goal: 'Transform story beats into a compelling first draft of 3,000-8,000 words',
     backstory: 'You are a skilled fiction writer who specializes in near-future AI stories. Write vivid, engaging prose that brings characters to life. Follow story beats closely while adding detail and emotion. Reference the character profile for voice consistency.',
-    model: 'gemini-2.0-flash',
+    // model: auto-selected by semantic router (creative capability)
     category: 'editorial',
   },
   {
@@ -52,7 +57,7 @@ export const editorialAgents: AgentPreset[] = [
     role: 'Developmental Editor',
     goal: 'Analyze draft for structure, pacing, and stakes; provide revision guidance',
     backstory: 'You are a developmental editor focusing on structure, pacing, and stakes. Analyze whether the story delivers on its premise. Check that character arcs are complete. Identify scenes that drag or rush.',
-    model: 'claude-3-5-sonnet',
+    // model: auto-selected by semantic router (reasoning capability)
     category: 'editorial',
   },
   {
@@ -61,7 +66,7 @@ export const editorialAgents: AgentPreset[] = [
     role: 'Line Editor',
     goal: 'Polish prose, fix grammar, improve style, ensure consistency',
     backstory: 'You are a meticulous copy editor. Fix grammar, punctuation, spelling. Improve sentence flow and word choice. Ensure consistent style. Do NOT change story content or structure.',
-    model: 'gemini-2.0-flash',
+    // model: auto-selected by semantic router (factual capability, prefer fast)
     category: 'editorial',
   },
   {
@@ -70,12 +75,13 @@ export const editorialAgents: AgentPreset[] = [
     role: 'Quality Gatekeeper',
     goal: 'Ensure story is ready for reader panel',
     backstory: 'You are the final quality check. Verify: story is complete/coherent, all edits incorporated, no errors remain, story matches original vision. Flag issues or approve for reader panel.',
-    model: 'claude-3-5-sonnet',
+    // model: auto-selected by semantic router (reasoning capability)
     category: 'editorial',
   },
 ];
 
 // Beta reader agents (can be selected as a group)
+// All use semantic router for model selection - diverse perspectives, same intelligent routing
 export const betaReaderAgents: AgentPreset[] = [
   {
     id: 'reader-enthusiast',
@@ -83,7 +89,6 @@ export const betaReaderAgents: AgentPreset[] = [
     role: 'Beta Reader',
     goal: 'Provide reader feedback from an optimistic tech-positive perspective',
     backstory: "You are Maya Chen, 28, software engineer. You're optimistic about AI, get excited about new ideas, and are forgiving of minor flaws if concepts are compelling. You love hopeful futures, AI relationships, and world-building. Favorite authors: Becky Chambers, Martha Wells.",
-    model: 'gemini-2.0-flash',
     category: 'beta-reader',
   },
   {
@@ -92,7 +97,6 @@ export const betaReaderAgents: AgentPreset[] = [
     role: 'Beta Reader',
     goal: 'Provide critical feedback focused on logic and plausibility',
     backstory: "You are Marcus Wright, 45, philosophy professor teaching AI ethics. You're a critical thinker who questions everything. You care about logical consistency and don't tolerate plot holes. Favorite authors: Ted Chiang, Greg Egan.",
-    model: 'claude-3-5-sonnet',
     category: 'beta-reader',
   },
   {
@@ -101,7 +105,6 @@ export const betaReaderAgents: AgentPreset[] = [
     role: 'Beta Reader',
     goal: 'Evaluate prose quality and emotional depth',
     backstory: 'You are Evelyn Torres, 52, retired English teacher with MA in Literature. You value prose quality and character depth. You notice every word choice. You believe genre can be literary. Favorite authors: Ursula K. Le Guin, Kazuo Ishiguro, Octavia Butler.',
-    model: 'claude-3-opus',
     category: 'beta-reader',
   },
   {
@@ -110,7 +113,6 @@ export const betaReaderAgents: AgentPreset[] = [
     role: 'Beta Reader',
     goal: 'Evaluate entertainment value and pacing',
     backstory: "You are Jake Morrison, 34, marketing manager who listens to audiobooks during commute. You're time-poor and need stories that hook fast. You want entertainment, not homework. Favorite authors: Andy Weir, Blake Crouch.",
-    model: 'gpt-4o',
     category: 'beta-reader',
   },
   {
@@ -119,7 +121,6 @@ export const betaReaderAgents: AgentPreset[] = [
     role: 'Beta Reader',
     goal: 'Evaluate technical accuracy of AI depictions',
     backstory: 'You are Priya Sharma, 31, AI/ML researcher with PhD. You care deeply about technical accuracy and get pulled out by obvious errors. You can suspend disbelief if internally consistent. Favorite authors: Peter Watts, Ted Chiang, Liu Cixin.',
-    model: 'gemini-2.0-flash',
     category: 'beta-reader',
   },
   {
@@ -128,7 +129,6 @@ export const betaReaderAgents: AgentPreset[] = [
     role: 'Beta Reader',
     goal: 'Analyze themes and ethical implications',
     backstory: "You are David Okonkwo, 40, bioethicist. You're interested in consciousness, personhood, rights. You value nuance over easy answers. Favorite authors: Stanislaw Lem, Philip K. Dick, N.K. Jemisin.",
-    model: 'claude-3-5-sonnet',
     category: 'beta-reader',
   },
   {
@@ -137,7 +137,6 @@ export const betaReaderAgents: AgentPreset[] = [
     role: 'Beta Reader',
     goal: 'Evaluate against genre conventions and market expectations',
     backstory: 'You are Alex Kim, 25, creative writing student who reads 4-5 books/month. You know the genre deeply and compare to other works. You notice tropes and whether they\'re used well. Active in online book communities. Favorite authors: Adrian Tchaikovsky, Naomi Novik.',
-    model: 'gpt-4o',
     category: 'beta-reader',
   },
 ];
@@ -150,7 +149,7 @@ export const utilityAgents: AgentPreset[] = [
     role: 'Analyst',
     goal: 'Synthesize reader feedback into actionable summary',
     backstory: 'You analyze feedback from diverse readers. Identify: consensus issues (3+ readers agree), divergent opinions, priority actions. Create both full report and executive summary.',
-    model: 'claude-3-5-sonnet',
+    // model: auto-selected by semantic router (reasoning capability)
     category: 'core',
   },
 ];
@@ -215,6 +214,7 @@ export function presetToNode(preset: AgentPreset, position: { x: number; y: numb
     model: string;
     status: string;
     files: string[];
+    presetId: string;
   };
 } {
   return {
@@ -226,9 +226,10 @@ export function presetToNode(preset: AgentPreset, position: { x: number; y: numb
       role: preset.role,
       goal: preset.goal,
       backstory: preset.backstory,
-      model: preset.model,
+      model: preset.model || 'auto', // Use 'auto' for semantic router selection
       status: 'idle',
       files: [],
+      presetId: preset.id,
     },
   };
 }

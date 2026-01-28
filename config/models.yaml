@@ -100,9 +100,9 @@ models:
     deprecated: false
     notes: "Very cheap with massive context, good for file processing"
 
-  - model_id: "gemini-2.0-pro"
+  - model_id: "gemini-1.5-pro"
     provider: "google"
-    display_name: "Gemini 2.0 Pro"
+    display_name: "Gemini 1.5 Pro"
     cost_per_1k_input: 0.00125
     cost_per_1k_output: 0.005
     context_window: 2000000

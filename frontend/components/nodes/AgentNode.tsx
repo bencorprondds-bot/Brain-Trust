@@ -1,6 +1,6 @@
 import React, { memo } from 'react';
 import { Handle, Position, NodeProps } from 'reactflow';
-import { Bot, Loader2, CheckCircle2, Play, TriangleAlert, GripVertical } from 'lucide-react';
+import { Bot, Loader2, CheckCircle2, Play, TriangleAlert, GripVertical, Sparkles } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
@@ -115,11 +115,18 @@ const AgentNode = ({ data, selected, id }: NodeProps<AgentData>) => {
                         </div>
                     )}
 
-                    {/* Model Badge */}
+                    {/* Model Badge - Shows "Auto" for intelligent routing or specific model if overridden */}
                     <div className="mt-3 flex justify-between items-center opacity-60">
-                        <Badge variant="outline" className="text-[10px] h-5 border-zinc-700 text-zinc-400">
-                            {data.model}
-                        </Badge>
+                        {(!data.model || data.model === 'auto') ? (
+                            <Badge variant="outline" className="text-[10px] h-5 border-cyan-800 text-cyan-500 gap-1">
+                                <Sparkles className="w-2.5 h-2.5" />
+                                Auto
+                            </Badge>
+                        ) : (
+                            <Badge variant="outline" className="text-[10px] h-5 border-zinc-700 text-zinc-400">
+                                {data.model}
+                            </Badge>
+                        )}
                         <Play className={cn(
                             "w-3 h-3 text-zinc-600",
                             data.status === 'thinking' && "text-cyan-500 fill-cyan-500"
