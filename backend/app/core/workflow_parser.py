@@ -3,17 +3,30 @@ from crewai import Agent, Task, Crew, Process
 from langchain_community.tools import DuckDuckGoSearchRun
 # Import other tools...
 
+# Semantic Router for intelligent model selection
+from app.core.semantic_router import SemanticRouter, get_router
+
 class WorkflowParser:
     """
     The Brain Trust Graph Engine.
     Translates visual React Flow JSON into executable CrewAI objects.
     """
 
-    def __init__(self, workflow_json: Dict[str, Any]):
+    def __init__(self, workflow_json: Dict[str, Any], auto_route: bool = False):
+        """
+        Initialize the workflow parser.
+
+        Args:
+            workflow_json: React Flow graph data with nodes and edges
+            auto_route: If True, use semantic router for model selection.
+                       If False, use model specified in node data (default).
+        """
         self.nodes = {n['id']: n for n in workflow_json.get('nodes', [])}
         self.edges = workflow_json.get('edges', [])
         self.agents_map = {} # Map node_id -> Agent()
         self.tasks_map = {}  # Map node_id -> Task()
+        self.auto_route = auto_route
+        self._router = get_router() if auto_route else None
 
     def parse_graph(self) -> Crew:
         """
@@ -155,30 +168,19 @@ class WorkflowParser:
             enhanced_backstory = base_backstory
 
         # Configure LLM
-        model_name = data.get('model', 'gemini-2.0-flash')
-        llm = None
+        # Use semantic router if auto_route is enabled, otherwise use specified model
+        if self.auto_route and self._router:
+            task_description = data.get('goal', '') or data.get('prompt', '')
+            decision = self._router.route(
+                task=task_description,
+                agent_config=data,
+            )
+            model_name = decision.model_id
+            print(f"[AutoRoute] {data.get('role', 'Agent')}: {decision.reason}")
+        else:
+            model_name = data.get('model', 'gemini-2.0-flash')
 
-        if 'gemini' in model_name:
-            llm = ChatGoogleGenerativeAI(
-                model=model_name,
-                google_api_key=os.getenv("GEMINI_API_KEY"),
-                temperature=0.7
-            )
-        elif 'claude' in model_name:
-            # Map friendly names to actual Anthropic Model IDs
-            # Updated Jan 2025: Using current model IDs
-            if "3-5" in model_name or "3.5" in model_name or "sonnet" in model_name.lower():
-                ant_model = "claude-sonnet-4-20250514"
-            elif "opus" in model_name:
-                ant_model = "claude-opus-4-20250514"
-            else:
-                ant_model = "claude-sonnet-4-20250514"
-            
-            llm = ChatAnthropic(
-                model_name=ant_model,
-                api_key=os.getenv("ANTHROPIC_API_KEY"),
-                temperature=0.7
-            )
+        llm = self._create_llm(model_name)
         
         # Initialize tools list - prioritize CrewAI tools over scripts
         tools = []
@@ -236,6 +238,82 @@ class WorkflowParser:
 
         return Agent(**agent_kwargs)
 
+    def _create_llm(self, model_name: str):
+        """
+        Create an LLM instance for the given model name.
+
+        Supports:
+        - Gemini models (gemini-*)
+        - Claude/Anthropic models (claude-*, sonnet, opus)
+        - OpenAI models (gpt-*, o1, o3)
+
+        Args:
+            model_name: Model identifier
+
+        Returns:
+            LangChain chat model instance
+        """
+        import os
+        from langchain_google_genai import ChatGoogleGenerativeAI
+        from langchain_anthropic import ChatAnthropic
+
+        model_lower = model_name.lower()
+
+        if 'gemini' in model_lower:
+            return ChatGoogleGenerativeAI(
+                model=model_name,
+                google_api_key=os.getenv("GEMINI_API_KEY"),
+                temperature=0.7
+            )
+
+        elif 'claude' in model_lower or 'sonnet' in model_lower or 'opus' in model_lower:
+            # Map friendly names to actual Anthropic Model IDs
+            if "sonnet" in model_lower and "4" not in model_lower:
+                # Legacy sonnet reference
+                ant_model = "claude-sonnet-4-20250514"
+            elif "opus" in model_lower and "4" not in model_lower:
+                # Legacy opus reference
+                ant_model = "claude-opus-4-20250514"
+            elif "3-5" in model_name or "3.5" in model_name:
+                # Claude 3.5 -> map to Sonnet 4
+                ant_model = "claude-sonnet-4-20250514"
+            elif "haiku" in model_lower:
+                ant_model = "claude-3-5-haiku-20241022"
+            else:
+                # Assume it's already a valid model ID
+                ant_model = model_name
+
+            return ChatAnthropic(
+                model_name=ant_model,
+                api_key=os.getenv("ANTHROPIC_API_KEY"),
+                temperature=0.7
+            )
+
+        elif 'gpt' in model_lower or model_lower.startswith('o1') or model_lower.startswith('o3'):
+            # OpenAI models
+            try:
+                from langchain_openai import ChatOpenAI
+                return ChatOpenAI(
+                    model=model_name,
+                    api_key=os.getenv("OPENAI_API_KEY"),
+                    temperature=0.7
+                )
+            except ImportError:
+                print(f"WARNING: langchain_openai not installed, falling back to Gemini")
+                return ChatGoogleGenerativeAI(
+                    model="gemini-2.0-flash",
+                    google_api_key=os.getenv("GEMINI_API_KEY"),
+                    temperature=0.7
+                )
+
+        else:
+            # Default to Gemini
+            print(f"WARNING: Unknown model {model_name}, falling back to gemini-2.0-flash")
+            return ChatGoogleGenerativeAI(
+                model="gemini-2.0-flash",
+                google_api_key=os.getenv("GEMINI_API_KEY"),
+                temperature=0.7
+            )
 
     def _topological_sort(self) -> List[str]:
         """

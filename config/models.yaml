@@ -1,0 +1,271 @@
+# Brain Trust Model Registry
+#
+# This file defines available LLM models with their capabilities, costs, and constraints.
+# The semantic router uses this information to select optimal models for each task.
+#
+# To customize: Copy this file to ~/.pai/models.yaml and edit as needed.
+# User config takes precedence over project config.
+#
+# Capability scores are 0.0-1.0 where:
+#   0.0-0.3: Poor/unreliable
+#   0.4-0.6: Adequate
+#   0.7-0.8: Good
+#   0.9-1.0: Excellent
+#
+# Last updated: January 2026
+
+models:
+  # ============================================================================
+  # ANTHROPIC MODELS
+  # ============================================================================
+
+  - model_id: "claude-sonnet-4-20250514"
+    provider: "anthropic"
+    display_name: "Claude Sonnet 4"
+    cost_per_1k_input: 0.003
+    cost_per_1k_output: 0.015
+    context_window: 200000
+    max_output: 8192
+    latency_tier: "medium"
+    capabilities:
+      code: 0.95
+      creative: 0.90
+      reasoning: 0.90
+      factual: 0.85
+      tool_use: 0.95
+      long_context: 0.90
+    available: true
+    deprecated: false
+    notes: "Best balance of capability and cost for most tasks"
+
+  - model_id: "claude-opus-4-20250514"
+    provider: "anthropic"
+    display_name: "Claude Opus 4"
+    cost_per_1k_input: 0.015
+    cost_per_1k_output: 0.075
+    context_window: 200000
+    max_output: 8192
+    latency_tier: "slow"
+    capabilities:
+      code: 0.98
+      creative: 0.95
+      reasoning: 0.98
+      factual: 0.90
+      tool_use: 0.95
+      long_context: 0.95
+    available: true
+    deprecated: false
+    notes: "Highest capability, use for complex reasoning or critical tasks"
+
+  - model_id: "claude-3-5-haiku-20241022"
+    provider: "anthropic"
+    display_name: "Claude 3.5 Haiku"
+    cost_per_1k_input: 0.0008
+    cost_per_1k_output: 0.004
+    context_window: 200000
+    max_output: 8192
+    latency_tier: "fast"
+    capabilities:
+      code: 0.80
+      creative: 0.75
+      reasoning: 0.75
+      factual: 0.80
+      tool_use: 0.85
+      long_context: 0.85
+    available: true
+    deprecated: false
+    notes: "Fast and cheap, good for simple tasks and classification"
+
+  # ============================================================================
+  # GOOGLE MODELS
+  # ============================================================================
+
+  - model_id: "gemini-2.0-flash"
+    provider: "google"
+    display_name: "Gemini 2.0 Flash"
+    cost_per_1k_input: 0.00035
+    cost_per_1k_output: 0.0015
+    context_window: 1000000
+    max_output: 8192
+    latency_tier: "fast"
+    capabilities:
+      code: 0.85
+      creative: 0.80
+      reasoning: 0.80
+      factual: 0.85
+      tool_use: 0.85
+      long_context: 0.95
+      vision: 0.85
+    available: true
+    deprecated: false
+    notes: "Very cheap with massive context, good for file processing"
+
+  - model_id: "gemini-2.0-pro"
+    provider: "google"
+    display_name: "Gemini 2.0 Pro"
+    cost_per_1k_input: 0.00125
+    cost_per_1k_output: 0.005
+    context_window: 2000000
+    max_output: 8192
+    latency_tier: "medium"
+    capabilities:
+      code: 0.90
+      creative: 0.85
+      reasoning: 0.88
+      factual: 0.88
+      tool_use: 0.90
+      long_context: 0.98
+      vision: 0.90
+    available: true
+    deprecated: false
+    notes: "2M context window, excellent for large document processing"
+
+  # ============================================================================
+  # OPENAI MODELS
+  # ============================================================================
+
+  - model_id: "gpt-4o"
+    provider: "openai"
+    display_name: "GPT-4o"
+    cost_per_1k_input: 0.005
+    cost_per_1k_output: 0.015
+    context_window: 128000
+    max_output: 4096
+    latency_tier: "medium"
+    capabilities:
+      code: 0.90
+      creative: 0.85
+      reasoning: 0.90
+      factual: 0.90
+      tool_use: 0.90
+      vision: 0.90
+    available: true
+    deprecated: false
+    notes: "Strong all-around model with vision"
+
+  - model_id: "gpt-4o-mini"
+    provider: "openai"
+    display_name: "GPT-4o Mini"
+    cost_per_1k_input: 0.00015
+    cost_per_1k_output: 0.0006
+    context_window: 128000
+    max_output: 4096
+    latency_tier: "fast"
+    capabilities:
+      code: 0.75
+      creative: 0.70
+      reasoning: 0.70
+      factual: 0.80
+      tool_use: 0.80
+      vision: 0.75
+    available: true
+    deprecated: false
+    notes: "Very cheap, good for simple tasks"
+
+  - model_id: "o1"
+    provider: "openai"
+    display_name: "OpenAI o1"
+    cost_per_1k_input: 0.015
+    cost_per_1k_output: 0.060
+    context_window: 200000
+    max_output: 32768
+    latency_tier: "slow"
+    capabilities:
+      code: 0.95
+      creative: 0.70
+      reasoning: 0.98
+      factual: 0.85
+      tool_use: 0.60  # Limited tool use
+    available: true
+    deprecated: false
+    notes: "Best for complex reasoning, math, and code. Limited tool use."
+
+  - model_id: "o3-mini"
+    provider: "openai"
+    display_name: "OpenAI o3-mini"
+    cost_per_1k_input: 0.0011
+    cost_per_1k_output: 0.0044
+    context_window: 200000
+    max_output: 65536
+    latency_tier: "medium"
+    capabilities:
+      code: 0.90
+      creative: 0.65
+      reasoning: 0.92
+      factual: 0.80
+      tool_use: 0.70
+    available: true
+    deprecated: false
+    notes: "Cost-effective reasoning model"
+
+# ============================================================================
+# ROUTING PRESETS
+# ============================================================================
+# These define common routing strategies that can be referenced by name
+
+routing_presets:
+  cost_optimized:
+    description: "Minimize cost while meeting minimum quality threshold"
+    strategy: "cheapest_capable"
+    min_capability_score: 0.7
+    prefer_fast: true
+
+  quality_optimized:
+    description: "Best quality regardless of cost"
+    strategy: "highest_capability"
+    min_capability_score: 0.0
+    prefer_fast: false
+
+  balanced:
+    description: "Balance between cost and quality"
+    strategy: "best_value"
+    min_capability_score: 0.8
+    prefer_fast: false
+
+  fast:
+    description: "Fastest response time"
+    strategy: "fastest"
+    min_capability_score: 0.6
+    prefer_fast: true
+
+# ============================================================================
+# TASK TYPE MAPPINGS
+# ============================================================================
+# Default capability requirements for common task types
+
+task_defaults:
+  librarian:
+    primary_capability: "tool_use"
+    min_complexity: 3
+    require_tools: true
+    notes: "File operations need reliable tool use"
+
+  writer:
+    primary_capability: "creative"
+    min_complexity: 6
+    require_tools: false
+    notes: "Creative writing benefits from higher capability"
+
+  editor:
+    primary_capability: "reasoning"
+    min_complexity: 7
+    require_tools: false
+    notes: "Developmental editing needs strong reasoning"
+
+  coder:
+    primary_capability: "code"
+    min_complexity: 7
+    require_tools: true
+    notes: "Code generation needs high accuracy"
+
+  classifier:
+    primary_capability: "factual"
+    min_complexity: 3
+    require_tools: false
+    notes: "Classification can use cheaper models"
+
+  summarizer:
+    primary_capability: "factual"
+    min_complexity: 4
+    require_tools: false
+    notes: "Summarization is straightforward"
