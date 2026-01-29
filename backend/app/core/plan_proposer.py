@@ -14,10 +14,59 @@ from typing import Dict, List, Optional, Any
 from datetime import datetime
 from enum import Enum
 
-from .intent_parser import ParsedIntent, IntentType, ProjectScope
+from .intent_parser import ParsedIntent, IntentType, ProjectScope, Assumption
 from .capability_registry import get_capability_registry, Capability
 
 logger = logging.getLogger(__name__)
+
+
+class VerificationMethod(str, Enum):
+    """How to verify success criteria."""
+    TEST = "test"              # Run automated tests
+    LLM_JUDGE = "llm_judge"    # Use LLM to evaluate
+    USER_APPROVAL = "user_approval"  # Requires human sign-off
+    METRIC = "metric"          # Check a measurable value
+    FILE_EXISTS = "file_exists"  # Verify output file exists
+
+
+@dataclass
+class SuccessCriteria:
+    """
+    Defines what "done" looks like for a plan.
+
+    Based on Karpathy insight: "Give success criteria, not step-by-step instructions"
+    """
+
+    id: str
+    description: str
+    verification_method: VerificationMethod
+
+    # For test-based verification
+    test_command: Optional[str] = None
+
+    # For metric-based verification
+    target_metric: Optional[float] = None
+    metric_name: Optional[str] = None
+
+    # For LLM judge verification
+    judge_prompt: Optional[str] = None
+
+    # Status
+    verified: bool = False
+    verification_result: Optional[str] = None
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "id": self.id,
+            "description": self.description,
+            "verification_method": self.verification_method.value,
+            "test_command": self.test_command,
+            "target_metric": self.target_metric,
+            "metric_name": self.metric_name,
+            "judge_prompt": self.judge_prompt,
+            "verified": self.verified,
+            "verification_result": self.verification_result,
+        }
 
 
 class PlanStatus(str, Enum):
@@ -102,6 +151,21 @@ class ExecutionPlan:
     requires_approval: bool = True
     approval_notes: Optional[str] = None
 
+    # Success criteria (Karpathy insight: declarative goals, not just steps)
+    success_criteria: List[SuccessCriteria] = field(default_factory=list)
+    max_iterations: int = 5  # How many times to loop before giving up
+    allow_self_correction: bool = True  # Let agent retry on failure
+
+    # Assumptions carried from intent parsing
+    assumptions: List[Assumption] = field(default_factory=list)
+
+    # Pushback/concerns (Karpathy insight: agents should push back)
+    concerns: List[str] = field(default_factory=list)
+    alternative_suggestions: List[str] = field(default_factory=list)
+    disagrees_with_approach: bool = False
+    disagreement_reason: Optional[str] = None
+    recommended_alternative: Optional[str] = None
+
     def to_dict(self) -> Dict[str, Any]:
         return {
             "id": self.id,
@@ -115,35 +179,94 @@ class ExecutionPlan:
             "approved_at": self.approved_at.isoformat() if self.approved_at else None,
             "completed_at": self.completed_at.isoformat() if self.completed_at else None,
             "requires_approval": self.requires_approval,
+            "success_criteria": [sc.to_dict() for sc in self.success_criteria],
+            "max_iterations": self.max_iterations,
+            "allow_self_correction": self.allow_self_correction,
+            "assumptions": [
+                {"description": a.description, "confidence": a.confidence, "category": a.category}
+                for a in self.assumptions
+            ],
+            "concerns": self.concerns,
+            "alternative_suggestions": self.alternative_suggestions,
+            "disagrees_with_approach": self.disagrees_with_approach,
+            "disagreement_reason": self.disagreement_reason,
+            "recommended_alternative": self.recommended_alternative,
         }
 
-    def to_display_string(self) -> str:
+    def to_display_string(self, use_ascii: bool = False) -> str:
         """Generate a human-readable plan summary."""
+        # Use ASCII indicators for Windows compatibility
+        if use_ascii:
+            status_indicators = {
+                "pending": "[ ]",
+                "in_progress": "[~]",
+                "completed": "[x]",
+                "failed": "[!]",
+            }
+        else:
+            status_indicators = {
+                "pending": "[ ]",
+                "in_progress": "[~]",
+                "completed": "[x]",
+                "failed": "[!]",
+            }
+
         lines = [
             f"# Execution Plan: {self.intent_summary}",
             f"Project: {self.project.value}",
             f"Status: {self.status.value}",
-            "",
-            "## Steps:",
         ]
 
-        for step in self.steps:
-            status_emoji = {
-                "pending": "⏳",
-                "in_progress": "🔄",
-                "completed": "✅",
-                "failed": "❌",
-            }.get(step.status, "⏳")
+        # Show concerns/pushback if any (Karpathy insight: agents should push back)
+        if self.concerns or self.disagrees_with_approach:
+            lines.append("")
+            lines.append("## Concerns:")
+            if self.disagrees_with_approach:
+                lines.append(f"  WARNING: {self.disagreement_reason}")
+                if self.recommended_alternative:
+                    lines.append(f"  Recommended: {self.recommended_alternative}")
+            for concern in self.concerns:
+                lines.append(f"  - {concern}")
 
+        # Show assumptions if any
+        if self.assumptions:
+            lines.append("")
+            lines.append("## Assumptions:")
+            for a in self.assumptions:
+                confidence_label = "High" if a.confidence >= 0.8 else "Med" if a.confidence >= 0.5 else "Low"
+                lines.append(f"  [{confidence_label}] {a.description}")
+
+        # Show success criteria (Karpathy insight: declarative goals)
+        if self.success_criteria:
+            lines.append("")
+            lines.append("## Success Criteria:")
+            for sc in self.success_criteria:
+                verified = "[x]" if sc.verified else "[ ]"
+                lines.append(f"  {verified} {sc.description}")
+                if sc.test_command:
+                    lines.append(f"      Verify: {sc.test_command}")
+            lines.append(f"  (Will iterate up to {self.max_iterations} times until criteria met)")
+
+        # Show steps
+        lines.append("")
+        lines.append("## Steps:")
+        for step in self.steps:
+            indicator = status_indicators.get(step.status, "[ ]")
             deps = ""
             if step.depends_on:
-                deps = f" (after step {', '.join(step.depends_on)})"
-
-            lines.append(f"{status_emoji} {step.order}. [{step.agent_role}] {step.description}{deps}")
+                deps = f" (after {', '.join(step.depends_on)})"
+            lines.append(f"  {indicator} {step.order}. [{step.agent_role}] {step.description}{deps}")
 
         if self.constraints:
             lines.append("")
             lines.append(f"Constraints: {', '.join(self.constraints)}")
+
+        # Show alternatives if suggested
+        if self.alternative_suggestions:
+            lines.append("")
+            lines.append("## Alternatives Considered:")
+            for alt in self.alternative_suggestions:
+                lines.append(f"  - {alt}")
 
         return "\n".join(lines)
 
