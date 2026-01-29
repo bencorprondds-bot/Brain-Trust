@@ -6,6 +6,17 @@ import sys
 import pytest
 from dotenv import load_dotenv
 
+# Fix Windows console encoding for emoji support
+if sys.platform == "win32":
+    try:
+        sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+        sys.stderr.reconfigure(encoding='utf-8', errors='replace')
+    except AttributeError:
+        # Python < 3.7 fallback
+        import io
+        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+        sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
+
 # Load environment variables
 load_dotenv(".env")
 

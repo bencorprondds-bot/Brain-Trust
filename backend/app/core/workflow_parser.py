@@ -130,13 +130,16 @@ class WorkflowParser:
                 self.tasks_map[node_id] = task
 
         # 3. Create Crew
+        import sys
+        # Disable verbose on Windows to prevent emoji encoding errors in console
+        verbose_mode = sys.platform != "win32"
         crew = Crew(
             agents=list(self.agents_map.values()),
             tasks=tasks_list,
-            verbose=True, # Important for websocket streaming later
+            verbose=verbose_mode, # Disabled on Windows due to emoji encoding issues
             process=Process.sequential,
             memory=False, # Disable ChromaDB/Embedding overhead to prevent crashes
-            embedder=None 
+            embedder=None
         )
         return crew
 

@@ -1,9 +1,39 @@
 import os
+import sys
 import asyncio
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
+
+# Fix Windows console encoding for emoji support
+if sys.platform == "win32":
+    try:
+        sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+        sys.stderr.reconfigure(encoding='utf-8', errors='replace')
+    except AttributeError:
+        # Python < 3.7 fallback
+        import io
+        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+        sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
+
+    # Monkey-patch CrewAI's FilteredStream to handle Windows encoding errors
+    try:
+        from crewai.llm import FilteredStream
+        _original_write = FilteredStream.write
+
+        def _safe_write(self, s):
+            """Patched write method that handles Windows encoding errors."""
+            try:
+                return _original_write(self, s)
+            except UnicodeEncodeError:
+                # Replace problematic characters with '?' for Windows console
+                safe_s = s.encode('ascii', 'replace').decode('ascii')
+                return self._original_stream.write(safe_s)
+
+        FilteredStream.write = _safe_write
+    except ImportError:
+        pass  # CrewAI not installed
 
 # Calculate absolute path to .env (backend/.env)
 # __file__ is backend/app/main.py

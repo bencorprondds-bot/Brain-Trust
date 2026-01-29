@@ -39,6 +39,19 @@ class ProjectScope(str, Enum):
 
 
 @dataclass
+class Assumption:
+    """
+    An assumption made during intent parsing.
+
+    Based on Karpathy insight: "Models make wrong assumptions and run with them without checking"
+    """
+    description: str
+    confidence: float  # 0.0 - 1.0
+    category: str  # "project", "scope", "artifact", "constraint", "interpretation"
+    fallback: Optional[str] = None  # What to do if assumption is wrong
+
+
+@dataclass
 class ParsedIntent:
     """
     Structured representation of user intent.
@@ -69,6 +82,33 @@ class ParsedIntent:
     # Confidence
     confidence: float = 1.0
 
+    # Assumption tracking (Karpathy insight: surface assumptions explicitly)
+    assumptions: List[Assumption] = field(default_factory=list)
+    requires_assumption_confirmation: bool = False  # True if any assumption < 0.7 confidence
+
+    def get_low_confidence_assumptions(self) -> List[Assumption]:
+        """Return assumptions that need user confirmation."""
+        return [a for a in self.assumptions if a.confidence < 0.7]
+
+    def format_assumptions_for_user(self) -> str:
+        """Format assumptions for display to user."""
+        if not self.assumptions:
+            return ""
+
+        lines = ["I'm making the following assumptions:"]
+        for a in self.assumptions:
+            confidence_label = "High" if a.confidence >= 0.8 else "Medium" if a.confidence >= 0.5 else "Low"
+            lines.append(f"  - [{confidence_label}] {a.description}")
+            if a.fallback and a.confidence < 0.7:
+                lines.append(f"    (If wrong: {a.fallback})")
+
+        low_conf = self.get_low_confidence_assumptions()
+        if low_conf:
+            lines.append("")
+            lines.append("Should I proceed, or would you like to clarify the items marked Low/Medium?")
+
+        return "\n".join(lines)
+
     def to_dict(self) -> Dict[str, Any]:
         return {
             "intent_type": self.intent_type.value,
@@ -82,6 +122,16 @@ class ParsedIntent:
             "needs_clarification": self.needs_clarification,
             "clarification_questions": self.clarification_questions,
             "confidence": self.confidence,
+            "assumptions": [
+                {
+                    "description": a.description,
+                    "confidence": a.confidence,
+                    "category": a.category,
+                    "fallback": a.fallback,
+                }
+                for a in self.assumptions
+            ],
+            "requires_assumption_confirmation": self.requires_assumption_confirmation,
         }
 
 
@@ -270,6 +320,9 @@ User request: "{user_input}"
 
 Known projects: life_with_ai, coloring_book, diamond_age_primer, idle_game, general
 
+IMPORTANT: Explicitly track assumptions you are making about the user's intent.
+Do NOT silently assume - surface any uncertainty.
+
 Respond with JSON only:
 {{
     "intent_type": "create|edit|review|find|organize|analyze|status|approve|configure|unknown",
@@ -281,8 +334,22 @@ Respond with JSON only:
     "constraints": ["<constraint1>"],
     "needs_clarification": true|false,
     "clarification_questions": ["<question if clarification needed>"],
-    "confidence": <0.0-1.0>
+    "confidence": <0.0-1.0>,
+    "assumptions": [
+        {{
+            "description": "<what you are assuming>",
+            "confidence": <0.0-1.0>,
+            "category": "project|scope|artifact|constraint|interpretation",
+            "fallback": "<what to do if this assumption is wrong>"
+        }}
+    ]
 }}
+
+Rules for assumptions:
+- If the project isn't explicitly stated, that's an assumption
+- If you're interpreting ambiguous words (e.g., "fix" could mean edit or debug), that's an assumption
+- If you're guessing the scope (whole file vs specific section), that's an assumption
+- Lower confidence = user should confirm before proceeding
 
 Output only valid JSON."""
 
@@ -305,6 +372,19 @@ Output only valid JSON."""
             except ValueError:
                 pass
 
+            # Parse assumptions
+            assumptions = []
+            for a_data in data.get("assumptions", []):
+                assumptions.append(Assumption(
+                    description=a_data.get("description", ""),
+                    confidence=float(a_data.get("confidence", 0.5)),
+                    category=a_data.get("category", "interpretation"),
+                    fallback=a_data.get("fallback"),
+                ))
+
+            # Check if we need assumption confirmation
+            requires_confirmation = any(a.confidence < 0.7 for a in assumptions)
+
             return ParsedIntent(
                 intent_type=intent_type,
                 summary=data.get("summary", user_input[:50]),
@@ -316,6 +396,8 @@ Output only valid JSON."""
                 needs_clarification=data.get("needs_clarification", False),
                 clarification_questions=data.get("clarification_questions", []),
                 confidence=float(data.get("confidence", 0.8)),
+                assumptions=assumptions,
+                requires_assumption_confirmation=requires_confirmation,
             )
 
         except Exception as e:

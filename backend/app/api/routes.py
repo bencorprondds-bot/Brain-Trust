@@ -1,3 +1,30 @@
+# Windows stdout encoding fix - must be first to prevent encoding errors during imports
+import sys
+import io
+_windows_stdout_redirected = False
+_original_stdout = None
+_original_stderr = None
+if sys.platform == "win32":
+    _original_stdout = sys.stdout
+    _original_stderr = sys.stderr
+    # Use a safe wrapper that handles encoding errors
+    class SafeWriter:
+        def __init__(self, stream):
+            self._stream = stream
+        def write(self, s):
+            try:
+                return self._stream.write(s)
+            except UnicodeEncodeError:
+                safe_s = s.encode('ascii', 'replace').decode('ascii')
+                return self._stream.write(safe_s)
+        def flush(self):
+            return self._stream.flush()
+        def __getattr__(self, name):
+            return getattr(self._stream, name)
+    sys.stdout = SafeWriter(sys.stdout)
+    sys.stderr = SafeWriter(sys.stderr)
+    _windows_stdout_redirected = True
+
 from fastapi import APIRouter, HTTPException, BackgroundTasks, Security
 from pydantic import BaseModel
 from typing import Dict, Any, List, Optional
@@ -35,21 +62,36 @@ async def run_workflow_endpoint(workflow: WorkflowRequest):
         X-API-Key: Your BRAIN_TRUST_API_KEY from .env
     """
     start_time = time.time()
-    
+    import io
+    import sys
+
+    # On Windows, redirect stdout/stderr early to avoid encoding errors with emojis
+    _windows_redirect = sys.platform == "win32"
+    _old_stdout = None
+    _old_stderr = None
+
+    if _windows_redirect:
+        _old_stdout = sys.stdout
+        _old_stderr = sys.stderr
+        sys.stdout = io.StringIO()
+        sys.stderr = io.StringIO()
+
     try:
         # Convert Pydantic model to dict
         workflow_data = workflow.model_dump()
-        
+
         # Initialize Parser
         parser = WorkflowParser(workflow_data)
-        
+
         # Build Crew (with TELOS context and script tools from ~/.pai/)
         crew = parser.parse_graph()
-        
-        # Execute (Wrapped in Logger for streaming)
-        from app.core.logger import StdoutInterceptor
-        
-        with StdoutInterceptor():
+
+        # Execute
+        if not _windows_redirect:
+            from app.core.logger import StdoutInterceptor
+            with StdoutInterceptor():
+                result = crew.kickoff()
+        else:
             result = crew.kickoff()
         
         duration = time.time() - start_time
@@ -92,7 +134,7 @@ async def run_workflow_endpoint(workflow: WorkflowRequest):
 
                     # Create a new Google Doc
                     if "create a new google doc" in goal_lower:
-                        if "created" not in final_output.lower() and "✅" not in final_output:
+                        if "created" not in final_output.lower() and "[OK]" not in final_output:
                             title_match = re.search(r"titled\s+'([^']+)'", goal, re.IGNORECASE)
                             folder_match = re.search(r"in the\s+([\w_ ]+)\s+folder", goal, re.IGNORECASE)
                             content_match = re.search(r"content\s+'([^']*)'", goal, re.IGNORECASE)
@@ -126,9 +168,16 @@ async def run_workflow_endpoint(workflow: WorkflowRequest):
             "task_count": len(crew.tasks),
             "duration": duration
         }
-            
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        # Restore stdout/stderr on Windows
+        if _windows_redirect:
+            if _old_stdout is not None:
+                sys.stdout = _old_stdout
+            if _old_stderr is not None:
+                sys.stderr = _old_stderr
 
 class ChatRequest(BaseModel):
     message: str
@@ -200,9 +249,9 @@ async def chat_endpoint(request: ChatRequest):
         if "<FETCHED_FILES>" in response_str:
             match = re.search(r'<FETCHED_FILES>([\s\S]*?)</FETCHED_FILES>', response_str)
             if match:
-                logger.info(f"[CHAT] ✅ FETCHED_FILES tag found: {match.group(1)}")
+                logger.info(f"[CHAT] [OK] FETCHED_FILES tag found: {match.group(1)}")
             else:
-                logger.warning(f"[CHAT] ⚠️ FETCHED_FILES tag detected but couldn't parse")
+                logger.warning(f"[CHAT] [WARN] FETCHED_FILES tag detected but couldn't parse")
         else:
             logger.info(f"[CHAT] No FETCHED_FILES tag in response")
         
