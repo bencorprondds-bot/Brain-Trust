@@ -181,6 +181,20 @@ class ToolRegistry:
                 estimated_latency_ms=100,
                 tags=["cache", "read", "file"],
             ),
+            ToolDefinition(
+                tool_id="plain_text_read",
+                name="Plain Text File Reader",
+                description="Reads plain text files (.md, .txt, .json, .yaml) from Google Drive. Use for markdown and non-Google-Doc formats.",
+                parameters=[
+                    {"name": "file_id", "type": "string", "description": "The file ID of the text file to read", "required": True}
+                ],
+                returns="string",
+                executor="app.tools.drive_tool:PlainTextFileReadTool",
+                category="file",
+                requires_auth=True,
+                estimated_latency_ms=2000,
+                tags=["drive", "read", "markdown", "text", "document"],
+            ),
         ]
 
         for tool_data in builtin_tools:

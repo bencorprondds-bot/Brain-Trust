@@ -39,11 +39,11 @@ The core thesis remains: **The value is not in the intelligence (which will beco
 
 ---
 
-## Active Development Phases
+## Completed Phases (4-8) - January 27, 2026
 
-### Phase 4: Evaluation Pipeline
+### Phase 4: Evaluation Pipeline [COMPLETE]
 
-**Status:** Ready to implement
+**Status:** COMPLETE
 **Priority:** High (validates all other work)
 
 #### Objective
@@ -77,18 +77,19 @@ passing_threshold: 0.8
 ```
 
 #### Tasks
-- [ ] Define test case schema
-- [ ] Create initial test cases for Librarian, Writer, Editor
-- [ ] Implement basic evaluators (tool selection, output format)
-- [ ] Build eval runner
-- [ ] Add LLM judge evaluator
-- [ ] Integrate with CLI (`legion eval`)
+- [x] Define test case schema - `backend/app/evals/schema.py`
+- [x] Create initial test cases for Librarian, Writer, Editor - `config/evals/*.yaml`
+- [x] Implement basic evaluators (tool selection, output format) - `backend/app/evals/evaluators/`
+- [x] Build eval runner - `backend/app/evals/runner.py`
+- [x] Add LLM judge evaluator - `backend/app/evals/evaluators/llm_judge.py`
+- [x] Integrate with CLI (`legion eval`) - `cli/commands/eval_cmd.py`
+- [x] Add API endpoints - `backend/app/api/eval_routes.py`
 
 ---
 
-### Phase 5: Willow - Executive AI
+### Phase 5: Willow - Executive AI [COMPLETE]
 
-**Status:** Design complete, ready to implement
+**Status:** COMPLETE
 **Priority:** Critical (core of Legion v3)
 
 #### Objective
@@ -158,18 +159,18 @@ create table capability_gaps (
 ```
 
 #### Tasks
-- [ ] Create Willow agent profile
-- [ ] Implement Capability Registry schema + seed data
-- [ ] Build intent parsing logic
-- [ ] Implement plan proposal generation
-- [ ] Create Team Lead dispatch system
-- [ ] Add `/api/v2/intent` endpoint
+- [x] Create Willow agent profile - `backend/app/agents/willow.py`
+- [x] Implement Capability Registry schema + seed data - `backend/app/core/capability_registry.py`
+- [x] Build intent parsing logic - `backend/app/core/intent_parser.py`
+- [x] Implement plan proposal generation - `backend/app/core/plan_proposer.py`
+- [x] Create Team Lead dispatch system - `backend/app/core/team_dispatcher.py`
+- [x] Add `/api/v2/intent` endpoint - `backend/app/api/v2/routes.py`
 
 ---
 
-### Phase 6: Preference Memory
+### Phase 6: Preference Memory [COMPLETE]
 
-**Status:** Design complete
+**Status:** COMPLETE
 **Priority:** High (enables learning)
 
 #### Objective
@@ -222,17 +223,17 @@ create table daily_digests (
 ```
 
 #### Tasks
-- [ ] Create database migration for new tables
-- [ ] Implement PreferenceMemory class
-- [ ] Build approval capture workflow
-- [ ] Pattern extraction from successful runs
-- [ ] Inject preferences into Willow's context
+- [x] Create database migration for new tables - SQLite in `~/.pai/preference_memory.db`
+- [x] Implement PreferenceMemory class - `backend/app/core/preference_memory.py`
+- [x] Build approval capture workflow
+- [x] Pattern extraction from successful runs
+- [x] Inject preferences into Willow's context
 
 ---
 
-### Phase 7: Legion CLI
+### Phase 7: Legion CLI [COMPLETE]
 
-**Status:** Design complete
+**Status:** COMPLETE
 **Priority:** High (user requested)
 
 #### Objective
@@ -304,21 +305,21 @@ cli/
 ```
 
 #### Tasks
-- [ ] Set up CLI package with Typer
-- [ ] Implement basic `legion` command (interactive mode)
-- [ ] Add `legion status` command
-- [ ] Add `legion approve` command
-- [ ] Add `legion logs` command
-- [ ] Add `legion projects` command
-- [ ] Add `legion capabilities/gaps/agents` commands
-- [ ] Integrate eval commands (Phase 4)
-- [ ] Add pyproject.toml entry point
+- [x] Set up CLI package with Typer - `cli/__init__.py`
+- [x] Implement basic `legion` command (interactive mode) - `cli/interactive.py`
+- [x] Add `legion status` command - `cli/commands/status.py`
+- [x] Add `legion approve` command - `cli/commands/approve.py`
+- [x] Add `legion logs` command - `cli/commands/logs.py`
+- [x] Add `legion projects` command - `cli/commands/projects.py`
+- [x] Add `legion capabilities/gaps/agents` commands - `cli/commands/capabilities.py`
+- [x] Integrate eval commands (Phase 4) - `cli/commands/eval_cmd.py`
+- [x] Add pyproject.toml entry point - `pyproject.toml`
 
 ---
 
-### Phase 8: Advisory Board
+### Phase 8: Advisory Board [COMPLETE]
 
-**Status:** Design complete
+**Status:** COMPLETE
 **Priority:** Medium (for gap resolution)
 
 #### Objective
@@ -343,11 +344,12 @@ When Willow identifies a capability gap, convene frontier models to design a sol
 | Agent Builder | Create agent from approved proposal | `backend/app/core/agent_builder.py` |
 
 #### Tasks
-- [ ] Define proposal schema
-- [ ] Implement board convener
-- [ ] Build multi-model discussion orchestration
-- [ ] Add voting and synthesis logic
-- [ ] Create agent builder pipeline
+- [x] Define proposal schema - `backend/app/core/proposal_schema.py`
+- [x] Implement board convener - `backend/app/core/advisory_board.py`
+- [x] Build multi-model discussion orchestration
+- [x] Add voting and synthesis logic (integrated in advisory_board.py)
+- [x] Create agent builder pipeline - `backend/app/core/agent_builder.py`
+- [x] Add API endpoints - `backend/app/api/v2/routes.py`
 
 ---
 
