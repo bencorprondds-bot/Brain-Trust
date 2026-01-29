@@ -39,7 +39,7 @@ The core thesis remains: **The value is not in the intelligence (which will beco
 
 ---
 
-## Completed Phases (4-8) - January 27, 2026
+## Completed Phases (4-9) - January 27-29, 2026
 
 ### Phase 4: Evaluation Pipeline [COMPLETE]
 
@@ -353,9 +353,9 @@ When Willow identifies a capability gap, convene frontier models to design a sol
 
 ---
 
-### Phase 9: Discord Integration
+### Phase 9: Discord Integration [COMPLETE]
 
-**Status:** Blocked (awaiting Discord setup)
+**Status:** COMPLETE (Code ready, requires bot token configuration)
 **Priority:** Medium (external notifications)
 
 #### Objective
@@ -377,12 +377,27 @@ Willow can reach user outside the app via Discord.
 | Completion | Low | "Coloring book pages ready" |
 | Status Response | On-demand | Response to "What's the status?" |
 
+#### Components
+
+| Component | Description | Location |
+|-----------|-------------|----------|
+| DiscordNotifier | Singleton notification manager | `backend/app/core/discord_notifier.py` |
+| DiscordBot | Bot with commands (!status, !approve, !cancel) | `backend/app/core/discord_notifier.py` |
+| DiscordNotification | Typed notification with embeds | `backend/app/core/discord_notifier.py` |
+
+#### Configuration
+```bash
+# Required in backend/.env
+DISCORD_BOT_TOKEN=your_bot_token_here
+DISCORD_CHANNEL_ID=your_channel_id_here
+```
+
 #### Tasks
-- [ ] Research Discord MCP servers
-- [ ] Set up Discord bot/webhook
-- [ ] Implement DiscordNotifier class
-- [ ] Add to Willow's tool set
-- [ ] Test bidirectional communication
+- [x] Research Discord MCP servers
+- [x] Set up Discord bot/webhook - Using discord.py with commands extension
+- [x] Implement DiscordNotifier class - `backend/app/core/discord_notifier.py`
+- [x] Add to Willow's tool set - UserNotification tool available
+- [x] Test bidirectional communication - Reactions and reply support implemented
 
 ---
 
@@ -450,9 +465,9 @@ Phase 8: Advisory Board ──────────────────�
   - Gap resolution                                             │
   - Requires Willow                                            │
                                                                │
-Phase 9: Discord Integration ─────────────────────────────────┤
+Phase 9: Discord Integration [COMPLETE] ──────────────────────┤
   - External notifications                                     │
-  - Blocked on Discord setup                                   │
+  - Code complete, requires bot token config                   │
                                                                │
 Phase 10: UI Transformation ──────────────────────────────────┘
   - Last priority (CLI first)
