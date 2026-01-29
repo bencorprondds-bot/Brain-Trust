@@ -100,25 +100,45 @@ models:
     deprecated: false
     notes: "Very cheap with massive context, good for file processing"
 
-  - model_id: "gemini-1.5-pro"
+  - model_id: "gemini-2.5-pro-preview-05-06"
     provider: "google"
-    display_name: "Gemini 1.5 Pro"
+    display_name: "Gemini 2.5 Pro"
     cost_per_1k_input: 0.00125
     cost_per_1k_output: 0.005
-    context_window: 2000000
+    context_window: 1000000
     max_output: 8192
     latency_tier: "medium"
     capabilities:
-      code: 0.90
+      code: 0.92
+      creative: 0.88
+      reasoning: 0.92
+      factual: 0.90
+      tool_use: 0.92
+      long_context: 0.95
+      vision: 0.92
+    available: true
+    deprecated: false
+    notes: "Google's most advanced stable multimodal model for deep reasoning"
+
+  - model_id: "gemini-2.5-flash-preview-05-20"
+    provider: "google"
+    display_name: "Gemini 2.5 Flash"
+    cost_per_1k_input: 0.00015
+    cost_per_1k_output: 0.0006
+    context_window: 1000000
+    max_output: 8192
+    latency_tier: "fast"
+    capabilities:
+      code: 0.88
       creative: 0.85
       reasoning: 0.88
       factual: 0.88
       tool_use: 0.90
-      long_context: 0.98
-      vision: 0.90
+      long_context: 0.95
+      vision: 0.88
     available: true
     deprecated: false
-    notes: "2M context window, excellent for large document processing"
+    notes: "Fast and efficient, great balance of speed and capability"
 
   # ============================================================================
   # OPENAI MODELS

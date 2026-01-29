@@ -128,12 +128,22 @@ class ExecutionPlan:
         ]
 
         for step in self.steps:
-            status_emoji = {
-                "pending": "⏳",
-                "in_progress": "🔄",
-                "completed": "✅",
-                "failed": "❌",
-            }.get(step.status, "⏳")
+            # Use ASCII-safe status indicators for Windows compatibility
+            import sys
+            if sys.platform == "win32":
+                status_emoji = {
+                    "pending": "[...]",
+                    "in_progress": "[>>]",
+                    "completed": "[OK]",
+                    "failed": "[ERR]",
+                }.get(step.status, "[...]")
+            else:
+                status_emoji = {
+                    "pending": "⏳",
+                    "in_progress": "🔄",
+                    "completed": "✅",
+                    "failed": "❌",
+                }.get(step.status, "⏳")
 
             deps = ""
             if step.depends_on:

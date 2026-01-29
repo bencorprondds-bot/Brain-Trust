@@ -2,6 +2,7 @@ import os
 from supabase import create_client, Client
 from typing import Dict, Any, List, Optional
 from datetime import datetime
+from app.core.encoding import safe_print
 
 class SupabaseManager:
     _instance = None
@@ -41,9 +42,9 @@ class SupabaseManager:
             }
             # Assuming table 'executions' exists (from schema.sql)
             self.client.table("executions").insert(data).execute()
-            print("✅ Execution saved to Supabase.")
+            safe_print("[OK] Execution saved to Supabase.")
         except Exception as e:
-            print(f"❌ Failed to save execution log: {e}")
+            safe_print(f"[ERR] Failed to save execution log: {e}")
 
     def get_history(self, limit: int = 10) -> List[Dict]:
         """Fetches recent execution logs."""
@@ -54,5 +55,5 @@ class SupabaseManager:
             response = self.client.table("executions").select("*").order("timestamp", desc=True).limit(limit).execute()
             return response.data
         except Exception as e:
-            print(f"❌ Failed to fetch history: {e}")
+            safe_print(f"[ERR] Failed to fetch history: {e}")
             return []

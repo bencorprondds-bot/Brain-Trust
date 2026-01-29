@@ -429,7 +429,7 @@ You protect the user's time and attention. Only surface what matters.""",
     ) -> str:
         """Format a success message."""
         return (
-            f"✅ Done! Completed: {plan.intent_summary}\n\n"
+            f"[OK] Done! Completed: {plan.intent_summary}\n\n"
             f"**Result:**\n{result.final_output[:500] if result.final_output else 'Task completed.'}..."
         )
 
@@ -443,7 +443,7 @@ You protect the user's time and attention. Only surface what matters.""",
         errors = "\n".join([f"- {r.step_id}: {r.error}" for r in failed_steps])
 
         return (
-            f"⚠️ Encountered some issues with: {plan.intent_summary}\n\n"
+            f"[WARN] Encountered some issues with: {plan.intent_summary}\n\n"
             f"**Errors:**\n{errors}\n\n"
             f"Would you like me to try a different approach?"
         )
