@@ -20,9 +20,15 @@ class PrintToWebSocket(io.StringIO):
                     # Fallback if no loop
                     pass
             except:
-                pass 
+                pass
         # Still write to original stdout for debugging
-        sys.__stdout__.write(s)
+        # Handle encoding errors on Windows (cp1252 doesn't support emojis)
+        try:
+            sys.__stdout__.write(s)
+        except UnicodeEncodeError:
+            # Replace problematic characters with ASCII equivalents
+            safe_s = s.encode('ascii', 'replace').decode('ascii')
+            sys.__stdout__.write(safe_s)
 
 # Helper context manager
 class StdoutInterceptor:

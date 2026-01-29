@@ -96,11 +96,11 @@ class DriveListTool(BaseTool):
             
             output = f"Found {len(folders)} folders and {len(files)} files:\n\n"
             
-            output += "📁 FOLDERS:\n"
+            output += "[DIR] FOLDERS:\n"
             for item in sorted(folders, key=lambda x: x['name']):
                 output += f"  - {item['name']} (ID: {item['id']})\n"
             
-            output += "\n📄 FILES:\n"
+            output += "\n[DOC] FILES:\n"
             for item in sorted(files, key=lambda x: x['name'])[:20]:  # First 20 files
                 output += f"  - {item['name']} (ID: {item['id']})\n"
             
@@ -147,7 +147,7 @@ class DriveReadTool(BaseTool):
                             text += elem.get('textRun', {}).get('content', '')
 
             if not text.strip():
-                return f"📄 Document '{file_name}' is empty or contains only formatting"
+                return f"[DOC] Document '{file_name}' is empty or contains only formatting"
 
             # Use context cache - returns summary for large files, full content for small
             context_content, ref_info = cache_content(
@@ -159,15 +159,15 @@ class DriveReadTool(BaseTool):
             if ref_info.get("cached"):
                 # Large file - prepend info about caching
                 return (
-                    f"📄 Document: {file_name}\n"
+                    f"[DOC] Document: {file_name}\n"
                     f"📊 Size: {ref_info['original_length']:,} characters (cached for efficiency)\n"
-                    f"📁 Cache Path: {ref_info['cache_path']}\n"
+                    f"[DIR] Cache Path: {ref_info['cache_path']}\n"
                     f"🔑 File ID: {file_id}\n\n"
                     f"{context_content}"
                 )
             else:
                 # Small file - return full content inline
-                return f"📄 Document: {file_name}\n\n{text}"
+                return f"[DOC] Document: {file_name}\n\n{text}"
 
         except Exception as e:
             return f"Error reading doc: {str(e)}"
@@ -187,11 +187,11 @@ class CachedFileReadTool(BaseTool):
 
             content = read_cached_file(cache_path)
             if content is None:
-                return f"❌ Cache file not found at: {cache_path}"
+                return f"[ERROR] Cache file not found at: {cache_path}"
 
-            return f"📄 Full cached content ({len(content):,} characters):\n\n{content}"
+            return f"[DOC] Full cached content ({len(content):,} characters):\n\n{content}"
         except Exception as e:
-            return f"❌ Error reading cached file: {str(e)}"
+            return f"[ERROR] Error reading cached file: {str(e)}"
 
 class DriveWriteInput(BaseModel):
     title: str = Field(description="Title of the new document")
@@ -216,7 +216,7 @@ class DriveWriteTool(BaseTool):
             target_folder = FOLDER_IDS.get(folder.lower())
             if not target_folder:
                 available_folders = ", ".join(FOLDER_IDS.keys())
-                return f"❌ Folder '{folder}' not found. Available folders: {available_folders}"
+                return f"[ERROR] Folder '{folder}' not found. Available folders: {available_folders}"
             
             # 1. Prepare Metadata
             file_metadata = {
@@ -253,9 +253,9 @@ class DriveWriteTool(BaseTool):
                 docs_service.documents().batchUpdate(documentId=doc_id, body={'requests': requests}).execute()
             
             folder_display = folder.replace('_', ' ').title()
-            return f"✅ Successfully created document '{title}' in '{folder_display}' folder (ID: {doc_id})"
+            return f"[OK] Successfully created document '{title}' in '{folder_display}' folder (ID: {doc_id})"
         except Exception as e:
-            return f"❌ Error creating doc: {str(e)}"
+            return f"[ERROR] Error creating doc: {str(e)}"
 
 class WordDocExportInput(BaseModel):
     file_id: str = Field(description="The ID of the Word document (.docx) to export as text")
@@ -280,18 +280,18 @@ class WordDocExportTool(BaseTool):
             text = content.decode('utf-8')
             
             if not text.strip():
-                return "📄 Word document appears to be empty or contains no extractable text"
+                return "[DOC] Word document appears to be empty or contains no extractable text"
             
-            return f"📄 Word document content:\n\n{text}"
+            return f"[DOC] Word document content:\n\n{text}"
         except Exception as e:
             # If export fails, try getting file metadata to provide better error
             try:
                 file_metadata = drive_service.files().get(fileId=file_id, fields="name,mimeType").execute()
                 mime_type = file_metadata.get('mimeType', 'unknown')
                 name = file_metadata.get('name', 'unknown')
-                return f"❌ Cannot export file '{name}' (type: {mime_type}). Error: {str(e)}"
+                return f"[ERROR] Cannot export file '{name}' (type: {mime_type}). Error: {str(e)}"
             except:
-                return f"❌ Error exporting Word document: {str(e)}"
+                return f"[ERROR] Error exporting Word document: {str(e)}"
 
 class PlainTextFileReadInput(BaseModel):
     file_id: str = Field(description="The ID of the text file (.md, .txt, etc.) to read from Google Drive")
@@ -345,7 +345,7 @@ class PlainTextFileReadTool(BaseTool):
                 text = file_buffer.read().decode('latin-1')
 
             if not text.strip():
-                return f"📄 File '{file_name}' is empty"
+                return f"[DOC] File '{file_name}' is empty"
 
             # Use context cache for large files
             context_content, ref_info = cache_content(
@@ -356,17 +356,17 @@ class PlainTextFileReadTool(BaseTool):
 
             if ref_info.get("cached"):
                 return (
-                    f"📄 File: {file_name}\n"
+                    f"[DOC] File: {file_name}\n"
                     f"📊 Size: {ref_info['original_length']:,} characters (cached for efficiency)\n"
-                    f"📁 Cache Path: {ref_info['cache_path']}\n"
+                    f"[DIR] Cache Path: {ref_info['cache_path']}\n"
                     f"🔑 File ID: {file_id}\n\n"
                     f"{context_content}"
                 )
             else:
-                return f"📄 File: {file_name}\n\n{text}"
+                return f"[DOC] File: {file_name}\n\n{text}"
 
         except Exception as e:
-            return f"❌ Error reading file: {str(e)}"
+            return f"[ERROR] Error reading file: {str(e)}"
 
 
 class FindFolderInput(BaseModel):
@@ -380,7 +380,7 @@ class FindFolderTool(BaseTool):
     def _run(self, folder_name: str) -> str:
         try:
             if not folder_name or not folder_name.strip():
-                return "❌ Folder name cannot be empty"
+                return "[ERROR] Folder name cannot be empty"
 
             normalized = folder_name.strip().lower().replace(" ", "_")
             if "_" in normalized:
@@ -398,9 +398,9 @@ class FindFolderTool(BaseTool):
                 display_name = folder_name.strip()
                 spaced_name = display_name.replace("_", " ")
                 return (
-                    f"✅ Found 1 folder named '{display_name}':\n"
+                    f"[OK] Found 1 folder named '{display_name}':\n"
                     f"(Display name: {spaced_name})\n\n"
-                    f"📁 {display_name}\n"
+                    f"[DIR] {display_name}\n"
                     f"   ID: {folder_id}\n"
                     f"   Parents: {SHARED_DRIVE_ID}\n"
                 )
@@ -424,11 +424,11 @@ class FindFolderTool(BaseTool):
             folders = results.get('files', [])
             
             if not folders:
-                return f"❌ Folder '{folder_name}' not found in Shared Drive"
+                return f"[ERROR] Folder '{folder_name}' not found in Shared Drive"
             
-            output = f"✅ Found {len(folders)} folder(s) named '{folder_name}':\n\n"
+            output = f"[OK] Found {len(folders)} folder(s) named '{folder_name}':\n\n"
             for folder in folders:
-                output += f"📁 {folder['name']}\n"
+                output += f"[DIR] {folder['name']}\n"
                 output += f"   ID: {folder['id']}\n"
                 output += f"   Parents: {folder.get('parents', ['root'])[0]}\n\n"
             
@@ -467,13 +467,13 @@ class DocsEditTool(BaseTool):
                                 text_content += element['textRun'].get('content', '')
                 
                 if not text_content.strip():
-                    return f"📄 Document is empty or contains only formatting"
-                return f"📄 Document content:\n\n{text_content}"
+                    return f"[DOC] Document is empty or contains only formatting"
+                return f"[DOC] Document content:\n\n{text_content}"
             
             # APPEND operation - add text to end of document
             elif operation == 'append':
                 if not text:
-                    return "❌ Append requires 'text' parameter"
+                    return "[ERROR] Append requires 'text' parameter"
                 
                 document = docs_service.documents().get(documentId=doc_id).execute()
                 end_index = document['body']['content'][-1]['endIndex']
@@ -487,12 +487,12 @@ class DocsEditTool(BaseTool):
                     }
                 ]
                 docs_service.documents().batchUpdate(documentId=doc_id, body={'requests': requests}).execute()
-                return f"✅ Appended {len(text)} characters to document"
+                return f"[OK] Appended {len(text)} characters to document"
             
             # INSERT operation - insert text at specific position
             elif operation == 'insert':
                 if not text:
-                    return "❌ Insert requires 'text' parameter"
+                    return "[ERROR] Insert requires 'text' parameter"
                 
                 requests = [
                     {
@@ -503,12 +503,12 @@ class DocsEditTool(BaseTool):
                     }
                 ]
                 docs_service.documents().batchUpdate(documentId=doc_id, body={'requests': requests}).execute()
-                return f"✅ Inserted {len(text)} characters at position {index}"
+                return f"[OK] Inserted {len(text)} characters at position {index}"
             
             # REPLACE operation - replace all content
             elif operation == 'replace':
                 if not text:
-                    return "❌ Replace requires 'text' parameter"
+                    return "[ERROR] Replace requires 'text' parameter"
                 
                 document = docs_service.documents().get(documentId=doc_id).execute()
                 body_content = document['body']['content']
@@ -536,7 +536,7 @@ class DocsEditTool(BaseTool):
                     }
                 ]
                 docs_service.documents().batchUpdate(documentId=doc_id, body={'requests': requests}).execute()
-                return f"✅ Replaced document content with {len(text)} characters"
+                return f"[OK] Replaced document content with {len(text)} characters"
             
             # CLEAR operation - delete all content
             elif operation == 'clear':
@@ -559,11 +559,11 @@ class DocsEditTool(BaseTool):
                     }
                 ]
                 docs_service.documents().batchUpdate(documentId=doc_id, body={'requests': requests}).execute()
-                return f"✅ Cleared all content from document"
+                return f"[OK] Cleared all content from document"
             
             else:
                 valid_ops = "read, append, insert, replace, clear"
-                return f"❌ Invalid operation '{operation}'. Valid operations: {valid_ops}"
+                return f"[ERROR] Invalid operation '{operation}'. Valid operations: {valid_ops}"
                 
         except Exception as e:
-            return f"❌ Error editing document: {str(e)}"
+            return f"[ERROR] Error editing document: {str(e)}"
