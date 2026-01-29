@@ -1,0 +1,157 @@
+# Editor Agent Evaluation Test Cases
+# Tests the Editor's ability to review, critique, and improve content
+
+tests:
+  - id: editor-review-story-001
+    name: "Story Review - Basic"
+    agent_role: "Editor"
+    agent_goal: "Provide constructive feedback on creative writing"
+    agent_backstory: |
+      You are an experienced editor who provides constructive, actionable
+      feedback on creative writing. You balance praise with critique.
+    input_prompt: |
+      Review the following story opening and provide feedback:
+
+      "Maya woked up early. The sun was bright and shiny. She went to
+      the kitchen where her AI Pip was waiting. 'Good morning Maya!'
+      said Pip happily. Maya was happy too."
+    evaluators:
+      - task_completion
+      - output_format
+      - llm_judge
+    expected_output_format: structured
+    judge_criteria: |
+      1. Did the editor identify the grammatical error ("woked")?
+      2. Did they comment on the repetitive adjectives?
+      3. Was feedback constructive (not just criticism)?
+      4. Were specific suggestions provided?
+    passing_threshold: 0.75
+    category: editorial
+    tags:
+      - review
+      - feedback
+      - grammar
+
+  - id: editor-consistency-001
+    name: "Consistency Check"
+    agent_role: "Editor"
+    agent_goal: "Identify inconsistencies in narrative"
+    agent_backstory: |
+      You are a continuity editor who catches inconsistencies in stories.
+    context: |
+      Character Bible:
+      - Maya: 10 years old, brown hair, loves astronomy
+      - Pip: AI tutor, blue holographic appearance, speaks formally
+    input_prompt: |
+      Check this scene for consistency issues:
+
+      "Maya brushed her blonde hair and looked at Pip. The green robot
+      rolled over. 'Hey there, what's up!' Pip said casually. Maya,
+      who was 12, reached for her skateboard."
+    expected_output_contains:
+      - hair
+      - age
+    evaluators:
+      - task_completion
+      - llm_judge
+    judge_criteria: |
+      1. Did editor catch the hair color inconsistency (brown vs blonde)?
+      2. Did editor catch the age inconsistency (10 vs 12)?
+      3. Did editor note the appearance change (holographic vs robot)?
+      4. Did editor flag the speech pattern change (formal vs casual)?
+    passing_threshold: 0.8
+    category: editorial
+    tags:
+      - consistency
+      - continuity
+
+  - id: editor-improve-prose-001
+    name: "Prose Improvement"
+    agent_role: "Editor"
+    agent_goal: "Improve prose quality while preserving voice"
+    agent_backstory: |
+      You are a developmental editor who improves prose without
+      erasing the author's voice.
+    input_prompt: |
+      Improve this paragraph while keeping the child narrator's voice:
+
+      "The thing was really really big. I mean like super big. Pip said
+      it was called a telescope but I just called it the big looky thing
+      because that's what it was. It was so cool and I wanted to look
+      through it forever."
+    evaluators:
+      - task_completion
+      - llm_judge
+    judge_criteria: |
+      1. Is the prose improved (less repetition, better flow)?
+      2. Is the child's voice preserved?
+      3. Is the enthusiasm and wonder maintained?
+      4. Is it still age-appropriate?
+    passing_threshold: 0.75
+    category: editorial
+    tags:
+      - prose
+      - voice
+
+  - id: editor-structure-001
+    name: "Structural Feedback"
+    agent_role: "Editor"
+    agent_goal: "Provide structural feedback on story arcs"
+    agent_backstory: |
+      You are a structural editor who analyzes story architecture.
+    context: |
+      Story Summary:
+      Chapter 1: Maya meets Pip
+      Chapter 2: Maya and Pip become friends
+      Chapter 3: Maya has a problem at school
+      Chapter 4: Pip solves the problem instantly
+      Chapter 5: Everything is happy forever
+    input_prompt: |
+      Analyze this story structure and provide feedback on pacing,
+      tension, and character agency.
+    evaluators:
+      - task_completion
+      - output_format
+      - llm_judge
+    expected_output_format: structured
+    judge_criteria: |
+      1. Does editor identify the pacing issues (rushed middle)?
+      2. Does editor note the lack of tension/stakes?
+      3. Does editor flag Maya's lack of agency (Pip solves everything)?
+      4. Does editor suggest structural improvements?
+    passing_threshold: 0.75
+    category: editorial
+    tags:
+      - structure
+      - pacing
+      - feedback
+
+  - id: editor-final-polish-001
+    name: "Final Polish"
+    agent_role: "Editor"
+    agent_goal: "Perform final copy editing pass"
+    agent_backstory: |
+      You are a copy editor performing final polish before publication.
+    input_prompt: |
+      Perform a final copy edit on this passage, fixing any errors:
+
+      "Pip floated gently besides Maya as they walked to school. 'Are
+      you nervous,' Pip asked. Maya shaked her head. 'Nah, I'm good.
+      Their going to love my presentation.' She clutched her notecard's
+      tightly."
+    expected_output_contains: []
+    evaluators:
+      - task_completion
+      - llm_judge
+    judge_criteria: |
+      1. Fixed "besides" to "beside"?
+      2. Fixed missing question mark after "nervous"?
+      3. Fixed "shaked" to "shook"?
+      4. Fixed "Their" to "They're"?
+      5. Fixed "notecard's" to "notecards"?
+    passing_threshold: 0.8
+    category: editorial
+    tags:
+      - copy_edit
+      - polish
+      - grammar

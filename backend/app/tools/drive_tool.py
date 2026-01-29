@@ -116,28 +116,82 @@ class DriveReadInput(BaseModel):
 
 class DriveReadTool(BaseTool):
     name: str = "Google Doc Reader"
-    description: str = "Reads the text content of a Google Doc."
+    description: str = "Reads the text content of a Google Doc. For large documents, returns a summary with a cache path for full content access."
     args_schema: Type[BaseModel] = DriveReadInput
 
     def _run(self, file_id: str) -> str:
         try:
+            from app.core.context_cache import cache_content
+
             creds = DriveAuth.authenticate()
-            # For Docs, we need the docs service
-            service = build('docs', 'v1', credentials=creds)
-            
-            document = service.documents().get(documentId=file_id).execute()
-            
+            drive_service = build('drive', 'v3', credentials=creds)
+            docs_service = build('docs', 'v1', credentials=creds)
+
+            # Get file metadata for caching
+            file_meta = drive_service.files().get(
+                fileId=file_id,
+                fields="name,mimeType",
+                supportsAllDrives=True
+            ).execute()
+            file_name = file_meta.get('name', 'Unknown Document')
+
+            document = docs_service.documents().get(documentId=file_id).execute()
+
             # Simple text extraction
             text = ""
-            for content in document.get('body').get('content'):
+            for content in document.get('body', {}).get('content', []):
                 if 'paragraph' in content:
-                    elements = content.get('paragraph').get('elements')
+                    elements = content.get('paragraph', {}).get('elements', [])
                     for elem in elements:
                         if 'textRun' in elem:
-                            text += elem.get('textRun').get('content')
-            return text
+                            text += elem.get('textRun', {}).get('content', '')
+
+            if not text.strip():
+                return f"📄 Document '{file_name}' is empty or contains only formatting"
+
+            # Use context cache - returns summary for large files, full content for small
+            context_content, ref_info = cache_content(
+                file_id=file_id,
+                content=text,
+                metadata={"name": file_name, "type": "Google Doc"}
+            )
+
+            if ref_info.get("cached"):
+                # Large file - prepend info about caching
+                return (
+                    f"📄 Document: {file_name}\n"
+                    f"📊 Size: {ref_info['original_length']:,} characters (cached for efficiency)\n"
+                    f"📁 Cache Path: {ref_info['cache_path']}\n"
+                    f"🔑 File ID: {file_id}\n\n"
+                    f"{context_content}"
+                )
+            else:
+                # Small file - return full content inline
+                return f"📄 Document: {file_name}\n\n{text}"
+
         except Exception as e:
             return f"Error reading doc: {str(e)}"
+
+
+class CachedFileReadInput(BaseModel):
+    cache_path: str = Field(description="The cache file path returned by Google Doc Reader for large documents")
+
+class CachedFileReadTool(BaseTool):
+    name: str = "Cached File Reader"
+    description: str = "Reads the full content of a cached document. Use when Google Doc Reader returns a cache path for a large document."
+    args_schema: Type[BaseModel] = CachedFileReadInput
+
+    def _run(self, cache_path: str) -> str:
+        try:
+            from app.core.context_cache import read_cached_file
+
+            content = read_cached_file(cache_path)
+            if content is None:
+                return f"❌ Cache file not found at: {cache_path}"
+
+            return f"📄 Full cached content ({len(content):,} characters):\n\n{content}"
+        except Exception as e:
+            return f"❌ Error reading cached file: {str(e)}"
 
 class DriveWriteInput(BaseModel):
     title: str = Field(description="Title of the new document")
@@ -238,6 +292,82 @@ class WordDocExportTool(BaseTool):
                 return f"❌ Cannot export file '{name}' (type: {mime_type}). Error: {str(e)}"
             except:
                 return f"❌ Error exporting Word document: {str(e)}"
+
+class PlainTextFileReadInput(BaseModel):
+    file_id: str = Field(description="The ID of the text file (.md, .txt, etc.) to read from Google Drive")
+
+class PlainTextFileReadTool(BaseTool):
+    name: str = "Plain Text File Reader"
+    description: str = "Reads plain text files (.md, .txt, .json, .yaml, etc.) from Google Drive. Use this for markdown files and other non-Google-Doc formats."
+    args_schema: Type[BaseModel] = PlainTextFileReadInput
+
+    def _run(self, file_id: str) -> str:
+        try:
+            from app.core.context_cache import cache_content
+            import io
+
+            creds = DriveAuth.authenticate()
+            drive_service = build('drive', 'v3', credentials=creds)
+
+            # Get file metadata
+            file_meta = drive_service.files().get(
+                fileId=file_id,
+                fields="name,mimeType,size",
+                supportsAllDrives=True
+            ).execute()
+
+            file_name = file_meta.get('name', 'Unknown')
+            mime_type = file_meta.get('mimeType', 'unknown')
+
+            # For Google Docs, redirect to the Doc Reader
+            if mime_type == 'application/vnd.google-apps.document':
+                return f"⚠️ This is a Google Doc, not a plain text file. Use the Google Doc Reader tool instead for file ID: {file_id}"
+
+            # Download the file content
+            request = drive_service.files().get_media(
+                fileId=file_id,
+                supportsAllDrives=True
+            )
+
+            from googleapiclient.http import MediaIoBaseDownload
+            file_buffer = io.BytesIO()
+            downloader = MediaIoBaseDownload(file_buffer, request)
+
+            done = False
+            while not done:
+                status, done = downloader.next_chunk()
+
+            # Decode content
+            file_buffer.seek(0)
+            try:
+                text = file_buffer.read().decode('utf-8')
+            except UnicodeDecodeError:
+                text = file_buffer.read().decode('latin-1')
+
+            if not text.strip():
+                return f"📄 File '{file_name}' is empty"
+
+            # Use context cache for large files
+            context_content, ref_info = cache_content(
+                file_id=file_id,
+                content=text,
+                metadata={"name": file_name, "type": mime_type}
+            )
+
+            if ref_info.get("cached"):
+                return (
+                    f"📄 File: {file_name}\n"
+                    f"📊 Size: {ref_info['original_length']:,} characters (cached for efficiency)\n"
+                    f"📁 Cache Path: {ref_info['cache_path']}\n"
+                    f"🔑 File ID: {file_id}\n\n"
+                    f"{context_content}"
+                )
+            else:
+                return f"📄 File: {file_name}\n\n{text}"
+
+        except Exception as e:
+            return f"❌ Error reading file: {str(e)}"
+
 
 class FindFolderInput(BaseModel):
     folder_name: str = Field(description="The name of the folder to find in the Shared Drive")

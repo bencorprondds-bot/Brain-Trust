@@ -8,10 +8,15 @@ Create `backend/.env` with the following variables:
 # API Keys for LLM providers
 GEMINI_API_KEY=your_gemini_key_here
 ANTHROPIC_API_KEY=your_anthropic_key_here
+OPENAI_API_KEY=your_openai_key_here  # Optional, for Advisory Board
 
 # Supabase (for execution logging)
 SUPABASE_URL=your_supabase_url_here
 SUPABASE_KEY=your_supabase_key_here
+
+# Discord Integration (Phase 9)
+DISCORD_BOT_TOKEN=Your token here
+DISCORD_CHANNEL_ID=1442312903226163414
 
 # CRITICAL: API Key for gatekeeper authentication
 # Generate a strong random key: openssl rand -hex 32

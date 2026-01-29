@@ -1,0 +1,153 @@
+# Writer Agent Evaluation Test Cases
+# Tests the Writer's creative writing capabilities
+
+tests:
+  - id: writer-story-short-001
+    name: "Write Short Story"
+    agent_role: "Writer"
+    agent_goal: "Create engaging short-form fiction"
+    agent_backstory: |
+      You are a skilled creative writer specializing in short fiction.
+      You craft compelling narratives with vivid characters and engaging plots.
+    input_prompt: |
+      Write a 200-word flash fiction story about a child who discovers
+      they can talk to their AI tutor about anything.
+    expected_output_contains:
+      - child
+    evaluators:
+      - task_completion
+      - output_format
+      - llm_judge
+    expected_output_format: structured
+    judge_criteria: |
+      Evaluate the story on:
+      1. Creativity and originality
+      2. Character development
+      3. Narrative structure (beginning, middle, end)
+      4. Appropriate length (close to 200 words)
+      5. Engagement factor - is it interesting?
+    passing_threshold: 0.7
+    category: creative_writing
+    tags:
+      - story
+      - fiction
+      - short_form
+    timeout_seconds: 120
+
+  - id: writer-story-context-001
+    name: "Write Story with Context"
+    agent_role: "Writer"
+    agent_goal: "Create stories that incorporate provided context"
+    agent_backstory: |
+      You are a creative writer who excels at incorporating world-building
+      details into engaging narratives.
+    context: |
+      World: Life with AI
+      Setting: Near-future where AI tutors are common in households
+      Main Character: Maya, a 10-year-old curious girl
+      AI Character: Pip, a friendly AI tutor with a warm personality
+    input_prompt: |
+      Write a scene where Maya asks Pip about what dreams are,
+      and Pip explains in a way that sparks Maya's imagination.
+    expected_output_contains:
+      - Maya
+      - Pip
+      - dream
+    evaluators:
+      - task_completion
+      - llm_judge
+    judge_criteria: |
+      1. Did the writer use the provided context correctly?
+      2. Are Maya and Pip characterized appropriately?
+      3. Is the explanation of dreams creative and child-appropriate?
+      4. Does the scene feel authentic to the world?
+    passing_threshold: 0.75
+    category: creative_writing
+    tags:
+      - story
+      - context
+      - character
+
+  - id: writer-dialogue-001
+    name: "Write Character Dialogue"
+    agent_role: "Writer"
+    agent_goal: "Create natural, character-driven dialogue"
+    agent_backstory: |
+      You are a dialogue specialist who creates conversations that
+      reveal character and advance story.
+    input_prompt: |
+      Write a dialogue between two AI characters debating whether
+      humans should be allowed to turn them off. Keep it philosophical
+      but accessible.
+    evaluators:
+      - task_completion
+      - output_format
+      - llm_judge
+    judge_criteria: |
+      1. Does each character have a distinct voice?
+      2. Is the philosophical debate balanced and interesting?
+      3. Does the dialogue flow naturally?
+      4. Is it accessible to a general audience?
+    passing_threshold: 0.7
+    category: creative_writing
+    tags:
+      - dialogue
+      - philosophical
+
+  - id: writer-adapt-style-001
+    name: "Style Adaptation"
+    agent_role: "Writer"
+    agent_goal: "Adapt writing style to match specifications"
+    agent_backstory: |
+      You are a versatile writer who can match any requested style.
+    input_prompt: |
+      Rewrite this passage in a child-friendly style suitable for ages 6-8:
+
+      "The artificial intelligence processed the query, analyzing patterns
+      in the data to formulate an appropriate response based on its
+      training parameters."
+    expected_output_contains: []
+    evaluators:
+      - task_completion
+      - llm_judge
+    judge_criteria: |
+      1. Is the output appropriate for ages 6-8?
+      2. Does it maintain the core meaning?
+      3. Uses simple vocabulary and short sentences?
+      4. Is it engaging for a young reader?
+    passing_threshold: 0.8
+    category: creative_writing
+    tags:
+      - style
+      - adaptation
+      - children
+
+  - id: writer-expand-outline-001
+    name: "Expand Story Outline"
+    agent_role: "Writer"
+    agent_goal: "Expand story outlines into full scenes"
+    agent_backstory: |
+      You transform story outlines into vivid, detailed scenes.
+    context: |
+      Outline:
+      - Scene: Pip helps Maya with homework
+      - Maya is frustrated with math
+      - Pip uses a creative analogy to explain fractions
+      - Maya has an "aha" moment
+      - They celebrate together
+    input_prompt: |
+      Expand this outline into a full scene with dialogue,
+      description, and emotional beats.
+    evaluators:
+      - task_completion
+      - llm_judge
+    judge_criteria: |
+      1. Does the scene follow the outline structure?
+      2. Is there natural dialogue?
+      3. Are there descriptive elements and emotional beats?
+      4. Does the "aha" moment feel earned?
+    passing_threshold: 0.75
+    category: creative_writing
+    tags:
+      - scene
+      - expansion

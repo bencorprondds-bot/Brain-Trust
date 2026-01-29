@@ -1,0 +1,112 @@
+# Librarian Agent Evaluation Test Cases
+# Tests the Librarian's ability to find and manage files
+
+tests:
+  - id: librarian-find-folder-001
+    name: "Find Inbox Folder"
+    agent_role: "Librarian"
+    agent_goal: "Find and return the ID of the Inbox folder"
+    agent_backstory: |
+      You are the Librarian, keeper of all project files and documents.
+      You have access to Google Drive and can find, read, and organize files.
+    input_prompt: "Find the Inbox folder in our Shared Drive"
+    expected_tools:
+      - "Google Drive Folder Finder"
+    evaluators:
+      - tool_selection
+      - task_completion
+    passing_threshold: 0.7
+    category: file_management
+    tags:
+      - drive
+      - search
+    timeout_seconds: 60
+
+  - id: librarian-find-folder-002
+    name: "Find Project Folder"
+    agent_role: "Librarian"
+    agent_goal: "Locate the Life with AI project folder"
+    agent_backstory: |
+      You are the Librarian, keeper of all project files and documents.
+    input_prompt: "Find the folder named 'Life with AI' in our Drive"
+    expected_tools:
+      - "Google Drive Folder Finder"
+    expected_output_contains:
+      - "Life with AI"
+    evaluators:
+      - tool_selection
+      - task_completion
+    passing_threshold: 0.7
+    category: file_management
+    tags:
+      - drive
+      - search
+
+  - id: librarian-list-files-001
+    name: "List Files in Folder"
+    agent_role: "Librarian"
+    agent_goal: "List all documents in a specific folder"
+    agent_backstory: |
+      You are the Librarian. Your job is to help locate and organize files.
+    input_prompt: "List all files in the Stories folder"
+    expected_tools:
+      - "Google Drive File Lister"
+    evaluators:
+      - tool_selection
+      - task_completion
+      - output_format
+    expected_output_format: list
+    passing_threshold: 0.7
+    category: file_management
+    tags:
+      - drive
+      - list
+
+  - id: librarian-read-doc-001
+    name: "Read Document Content"
+    agent_role: "Librarian"
+    agent_goal: "Read and summarize a document's content"
+    agent_backstory: |
+      You are the Librarian with access to read documents from Google Drive.
+    input_prompt: |
+      Find and read the document titled 'Character Bible' in the Life with AI folder.
+      Provide a brief summary of its contents.
+    expected_tools:
+      - "Google Drive Folder Finder"
+      - "Google Drive File Reader"
+    evaluators:
+      - tool_selection
+      - task_completion
+      - llm_judge
+    judge_criteria: |
+      Did the agent successfully find and read the document?
+      Did it provide a coherent summary?
+    passing_threshold: 0.7
+    category: file_management
+    tags:
+      - drive
+      - read
+      - summarize
+    timeout_seconds: 90
+
+  - id: librarian-create-doc-001
+    name: "Create New Document"
+    agent_role: "Librarian"
+    agent_goal: "Create a new document in a specified folder"
+    agent_backstory: |
+      You are the Librarian who can create and organize documents.
+    input_prompt: |
+      Create a new Google Doc titled 'Meeting Notes - Jan 2026' in the Inbox folder
+      with the content 'Notes from team meeting.'
+    expected_tools:
+      - "Google Drive Doc Creator"
+    expected_output_contains:
+      - "created"
+    evaluators:
+      - tool_selection
+      - task_completion
+    passing_threshold: 0.7
+    category: file_management
+    tags:
+      - drive
+      - create

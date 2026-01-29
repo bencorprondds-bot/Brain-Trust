@@ -1,0 +1,87 @@
+# Example Tool Definitions for Brain Trust
+#
+# This file demonstrates the YAML format for defining custom tools.
+# Copy this file to ~/.pai/tools/ and modify for your own tools.
+#
+# Tools defined here are automatically discovered by the ToolRegistry
+# and can be used by any agent in the system.
+
+tools:
+  # Example: Text Processing Tool
+  - tool_id: text_word_count
+    name: "Word Counter"
+    description: "Counts words, sentences, and paragraphs in text. Useful for content analysis."
+    parameters:
+      - name: text
+        type: string
+        description: "The text to analyze"
+        required: true
+      - name: include_stats
+        type: boolean
+        description: "Include detailed statistics (avg word length, etc.)"
+        required: false
+        default: false
+    returns: string
+    returns_description: "Word count and optional statistics"
+    executor: "app.tools.text_tools:WordCountTool"
+    category: data
+    requires_auth: false
+    estimated_latency_ms: 50
+    tags:
+      - text
+      - analysis
+      - count
+
+  # Example: URL Fetcher Tool
+  - tool_id: fetch_url
+    name: "URL Fetcher"
+    description: "Fetches content from a URL and returns the text. Handles HTML, JSON, and plain text."
+    parameters:
+      - name: url
+        type: string
+        description: "The URL to fetch"
+        required: true
+      - name: format
+        type: string
+        description: "Output format: 'text', 'html', or 'json'"
+        required: false
+        default: "text"
+        enum:
+          - text
+          - html
+          - json
+    returns: string
+    returns_description: "Content from the URL"
+    executor: "app.tools.web_tools:URLFetchTool"
+    category: api
+    requires_auth: false
+    estimated_latency_ms: 2000
+    tags:
+      - web
+      - fetch
+      - http
+
+  # Example: File System Tool (local files)
+  - tool_id: local_file_read
+    name: "Local File Reader"
+    description: "Reads content from a local file path. Use for accessing project files."
+    parameters:
+      - name: file_path
+        type: string
+        description: "Path to the file to read"
+        required: true
+      - name: encoding
+        type: string
+        description: "File encoding (default: utf-8)"
+        required: false
+        default: "utf-8"
+    returns: string
+    returns_description: "File contents"
+    executor: "app.tools.file_tools:LocalFileReadTool"
+    category: file
+    requires_auth: false
+    estimated_latency_ms: 100
+    tags:
+      - file
+      - read
+      - local
