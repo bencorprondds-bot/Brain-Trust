@@ -83,15 +83,19 @@ export default function LegionInterface({ DebugView }: LegionInterfaceProps) {
         )}
       </div>
 
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col">
-        {viewMode === 'command' ? (
+      {/* Main Content - Both views stay mounted to preserve state */}
+      <div className="flex-1 flex flex-col relative">
+        {/* Command View (Willow Chat) - Hidden when not active */}
+        <div className={`absolute inset-0 ${viewMode === 'command' ? 'z-10' : 'z-0 pointer-events-none opacity-0'}`}>
           <WillowChat
             onToggleDebug={() => setViewMode('debug')}
             showDebugToggle={!!DebugView}
           />
-        ) : (
-          <div className="flex-1 relative">
+        </div>
+
+        {/* Debug View - Hidden when not active */}
+        <div className={`absolute inset-0 ${viewMode === 'debug' ? 'z-10' : 'z-0 pointer-events-none opacity-0'}`}>
+          <div className="flex-1 h-full relative">
             {/* Back to Command Button */}
             <div className="absolute top-4 left-4 z-50">
               <Button
@@ -117,7 +121,7 @@ export default function LegionInterface({ DebugView }: LegionInterfaceProps) {
               </div>
             )}
           </div>
-        )}
+        </div>
       </div>
     </div>
   );

@@ -82,6 +82,10 @@ export default function WillowChat({ onToggleDebug, showDebugToggle }: WillowCha
     setInput('');
     setIsLoading(true);
 
+    // Timeout controller - 2 minutes to allow for LLM retries
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 120000);
+
     try {
       const response = await fetch('http://localhost:8000/api/v2/intent', {
         method: 'POST',
@@ -93,7 +97,9 @@ export default function WillowChat({ onToggleDebug, showDebugToggle }: WillowCha
           message: content,
           auto_execute: false,
         }),
+        signal: controller.signal,
       });
+      clearTimeout(timeoutId);
 
       if (!response.ok) {
         throw new Error(`Server error: ${response.status}`);
@@ -122,9 +128,17 @@ export default function WillowChat({ onToggleDebug, showDebugToggle }: WillowCha
       }
 
     } catch (error) {
+      let errorMsg = 'Failed to connect to server';
+      if (error instanceof Error) {
+        if (error.name === 'AbortError') {
+          errorMsg = 'Request timed out after 2 minutes. The LLM may be overloaded - try again.';
+        } else {
+          errorMsg = error.message;
+        }
+      }
       setMessages(prev => [...prev, {
         role: 'system',
-        content: `Error: ${error instanceof Error ? error.message : 'Failed to connect to server'}. Is the backend running?`,
+        content: `Error: ${errorMsg}. Is the backend running?`,
         timestamp: new Date(),
       }]);
     } finally {
@@ -136,6 +150,11 @@ export default function WillowChat({ onToggleDebug, showDebugToggle }: WillowCha
     if (!currentPlan) return;
 
     setIsLoading(true);
+
+    // Longer timeout for execution (3 minutes) - execution involves LLM retries
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 180000);
+
     try {
       const response = await fetch('http://localhost:8000/api/v2/intent/approve', {
         method: 'POST',
@@ -147,7 +166,9 @@ export default function WillowChat({ onToggleDebug, showDebugToggle }: WillowCha
           plan_id: currentPlan.id,
           action,
         }),
+        signal: controller.signal,
       });
+      clearTimeout(timeoutId);
 
       const data = await response.json();
 
@@ -164,9 +185,17 @@ export default function WillowChat({ onToggleDebug, showDebugToggle }: WillowCha
       }
 
     } catch (error) {
+      let errorMsg = 'Action failed';
+      if (error instanceof Error) {
+        if (error.name === 'AbortError') {
+          errorMsg = 'Execution timed out after 3 minutes. The task may still be running on the backend.';
+        } else {
+          errorMsg = error.message;
+        }
+      }
       setMessages(prev => [...prev, {
         role: 'system',
-        content: `Error: ${error instanceof Error ? error.message : 'Action failed'}`,
+        content: `Error: ${errorMsg}`,
         timestamp: new Date(),
       }]);
     } finally {
