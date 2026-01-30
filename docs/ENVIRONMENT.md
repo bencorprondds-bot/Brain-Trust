@@ -14,7 +14,7 @@ OPENAI_API_KEY=your_openai_key_here  # Optional, for Advisory Board
 SUPABASE_URL=your_supabase_url_here
 SUPABASE_KEY=your_supabase_key_here
 
-# Discord Integration (Phase 9)
+# Discord Integration
 DISCORD_BOT_TOKEN=Your token here
 DISCORD_CHANNEL_ID=1442312903226163414
 

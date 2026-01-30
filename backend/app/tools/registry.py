@@ -195,6 +195,20 @@ class ToolRegistry:
                 estimated_latency_ms=2000,
                 tags=["drive", "read", "markdown", "text", "document"],
             ),
+            ToolDefinition(
+                tool_id="universal_file_read",
+                name="Universal File Reader",
+                description="Reads ANY file from Google Drive - automatically detects file type (Google Docs, .docx, .txt, .md, .json, spreadsheets) and uses the appropriate method. Best choice when you don't know the file type.",
+                parameters=[
+                    {"name": "file_id", "type": "string", "description": "The file ID of any file to read", "required": True}
+                ],
+                returns="string",
+                executor="app.tools.drive_tool:UniversalFileReadTool",
+                category="file",
+                requires_auth=True,
+                estimated_latency_ms=3000,
+                tags=["drive", "read", "document", "universal", "auto-detect"],
+            ),
         ]
 
         for tool_data in builtin_tools:
