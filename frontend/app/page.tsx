@@ -12,10 +12,6 @@ const LegionInterface = dynamic(() => import('@/components/LegionInterface'), {
   ),
 });
 
-const DebugView = dynamic(() => import('@/components/DebugView'), {
-  ssr: false,
-});
-
 export default function Home() {
-  return <LegionInterface DebugView={DebugView} />;
+  return <LegionInterface />;
 }

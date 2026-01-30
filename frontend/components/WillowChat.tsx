@@ -1,11 +1,12 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from 'react';
-import { Send, Loader2, CheckCircle, XCircle, ChevronRight, Settings, RefreshCw } from 'lucide-react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { Send, Loader2, CheckCircle, XCircle, ChevronRight, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { ExecutionTrace, StepTrace } from './ExecutionTraceView';
 
 interface PlanStep {
   id: string;
@@ -33,15 +34,50 @@ interface WillowMessage {
   execution_result?: {
     status: string;
     final_output?: string;
+    step_results?: Array<{
+      step_id: string;
+      result: string;
+      output?: string;
+      error?: string;
+      duration_seconds?: number;
+      tools_called?: string[];
+    }>;
+    total_duration_seconds?: number;
   };
+  agentAttribution?: string; // Which agent produced this message
 }
 
 interface WillowChatProps {
-  onToggleDebug?: () => void;
-  showDebugToggle?: boolean;
+  onExecutionUpdate?: (execution: ExecutionTrace) => void;
+  onExecutionComplete?: () => void;
+  selectedAgentId?: string | null;
+  showDevToggle?: boolean;
+  onToggleDevMode?: () => void;
 }
 
-export default function WillowChat({ onToggleDebug, showDebugToggle }: WillowChatProps) {
+// Agent abbreviation for inline badges
+function getAgentBadge(role: string): string {
+  const roleMap: Record<string, string> = {
+    'Librarian': 'Li',
+    'Writer': 'Wr',
+    'Creative Writer': 'Wr',
+    'Developmental Editor': 'DE',
+    'Line Editor': 'LE',
+    'Copy Editor': 'CE',
+    'Editor': 'Ed',
+    'Beta Reader': 'BR',
+    'Developer': 'Dv',
+  };
+  return roleMap[role] || role.substring(0, 2);
+}
+
+export default function WillowChat({
+  onExecutionUpdate,
+  onExecutionComplete,
+  selectedAgentId,
+  showDevToggle = true,
+  onToggleDevMode
+}: WillowChatProps) {
   const [messages, setMessages] = useState<WillowMessage[]>([]);
   const [input, setInput] = useState('');
   const [isInitialized, setIsInitialized] = useState(false);
@@ -57,8 +93,10 @@ export default function WillowChat({ onToggleDebug, showDebugToggle }: WillowCha
       setIsInitialized(true);
     }
   }, [isInitialized]);
+
   const [isLoading, setIsLoading] = useState(false);
   const [currentPlan, setCurrentPlan] = useState<Plan | null>(null);
+  const [currentExecutionId, setCurrentExecutionId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -68,6 +106,36 @@ export default function WillowChat({ onToggleDebug, showDebugToggle }: WillowCha
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  // Convert plan steps to execution trace format
+  const createExecutionTrace = useCallback((plan: Plan, status: 'running' | 'completed' | 'failed', result?: WillowMessage['execution_result']): ExecutionTrace => {
+    const steps: StepTrace[] = plan.steps.map((step, idx) => {
+      const stepResult = result?.step_results?.find(r => r.step_id === step.id);
+      return {
+        id: step.id,
+        order: step.order || idx + 1,
+        agent_role: step.agent_role,
+        description: step.description,
+        status: stepResult
+          ? (stepResult.result === 'success' ? 'completed' : stepResult.result === 'blocked' ? 'blocked' : 'failed')
+          : (status === 'running' ? (idx === 0 ? 'running' : 'pending') : 'pending'),
+        duration_seconds: stepResult?.duration_seconds,
+        output: stepResult?.output,
+        error: stepResult?.error,
+        tools_called: stepResult?.tools_called,
+      };
+    });
+
+    return {
+      id: plan.id,
+      timestamp: new Date(),
+      intent: plan.intent_summary,
+      status,
+      duration_seconds: result?.total_duration_seconds,
+      steps,
+      final_output: result?.final_output,
+    };
+  }, []);
 
   const sendMessage = async (content: string) => {
     if (!content.trim() || isLoading) return;
@@ -121,10 +189,12 @@ export default function WillowChat({ onToggleDebug, showDebugToggle }: WillowCha
 
       if (data.plan) {
         setCurrentPlan(data.plan);
+        setCurrentExecutionId(data.plan.id);
       }
 
       if (data.execution_result) {
         setCurrentPlan(null);
+        onExecutionComplete?.();
       }
 
     } catch (error) {
@@ -150,6 +220,12 @@ export default function WillowChat({ onToggleDebug, showDebugToggle }: WillowCha
     if (!currentPlan) return;
 
     setIsLoading(true);
+
+    // Create initial execution trace when starting
+    if (action === 'approve' && onExecutionUpdate) {
+      const trace = createExecutionTrace(currentPlan, 'running');
+      onExecutionUpdate(trace);
+    }
 
     // Longer timeout for execution (3 minutes) - execution involves LLM retries
     const controller = new AbortController();
@@ -180,8 +256,17 @@ export default function WillowChat({ onToggleDebug, showDebugToggle }: WillowCha
       };
       setMessages(prev => [...prev, willowMessage]);
 
+      // Update execution trace with results
+      if (data.execution_result && onExecutionUpdate && currentPlan) {
+        const status = data.execution_result.status === 'completed' ? 'completed' : 'failed';
+        const trace = createExecutionTrace(currentPlan, status, data.execution_result);
+        onExecutionUpdate(trace);
+      }
+
       if (action === 'approve' || action === 'cancel') {
         setCurrentPlan(null);
+        setCurrentExecutionId(null);
+        onExecutionComplete?.();
       }
 
     } catch (error) {
@@ -198,6 +283,12 @@ export default function WillowChat({ onToggleDebug, showDebugToggle }: WillowCha
         content: `Error: ${errorMsg}`,
         timestamp: new Date(),
       }]);
+
+      // Update trace as failed
+      if (onExecutionUpdate && currentPlan) {
+        const trace = createExecutionTrace(currentPlan, 'failed');
+        onExecutionUpdate(trace);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -218,18 +309,18 @@ export default function WillowChat({ onToggleDebug, showDebugToggle }: WillowCha
           <h1 className="text-xl font-bold bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">
             Willow
           </h1>
-          <p className="text-xs text-zinc-500">Executive Conductor • Legion v3</p>
+          <p className="text-xs text-zinc-500">Executive Conductor - Legion v3</p>
         </div>
         <div className="flex gap-2">
-          {showDebugToggle && (
+          {showDevToggle && onToggleDevMode && (
             <Button
               variant="outline"
               size="sm"
-              onClick={onToggleDebug}
+              onClick={onToggleDevMode}
               className="text-zinc-400 border-zinc-700 hover:bg-zinc-800"
             >
               <Settings className="w-4 h-4 mr-1" />
-              Debug View
+              Dev Mode
             </Button>
           )}
         </div>
@@ -249,6 +340,11 @@ export default function WillowChat({ onToggleDebug, showDebugToggle }: WillowCha
               {msg.role === 'willow' && (
                 <div className="flex items-center gap-2 mb-2">
                   <span className="text-emerald-400 text-sm font-medium">Willow</span>
+                  {msg.agentAttribution && (
+                    <Badge variant="outline" className="text-xs">
+                      via {getAgentBadge(msg.agentAttribution)}
+                    </Badge>
+                  )}
                 </div>
               )}
               <p className="whitespace-pre-wrap">{msg.content}</p>
@@ -263,8 +359,8 @@ export default function WillowChat({ onToggleDebug, showDebugToggle }: WillowCha
                     {msg.plan.steps.map((step, stepIdx) => (
                       <div key={step.id} className="flex items-center gap-2 text-sm">
                         <span className="text-zinc-500">{stepIdx + 1}.</span>
-                        <Badge variant="outline" className="text-xs">
-                          {step.agent_role}
+                        <Badge variant="outline" className="text-xs font-mono">
+                          {getAgentBadge(step.agent_role)}
                         </Badge>
                         <span className="text-zinc-400">{step.description}</span>
                       </div>
@@ -289,6 +385,11 @@ export default function WillowChat({ onToggleDebug, showDebugToggle }: WillowCha
                     <span className="text-sm font-medium">
                       {msg.execution_result.status === 'completed' ? 'Completed' : 'Issue'}
                     </span>
+                    {msg.execution_result.total_duration_seconds && (
+                      <span className="text-xs text-zinc-500 ml-auto">
+                        {msg.execution_result.total_duration_seconds.toFixed(1)}s
+                      </span>
+                    )}
                   </div>
                   {msg.execution_result.final_output && (
                     <p className="text-sm text-zinc-300 whitespace-pre-wrap">
@@ -354,7 +455,7 @@ export default function WillowChat({ onToggleDebug, showDebugToggle }: WillowCha
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyPress={handleKeyPress}
-            placeholder="Tell Willow what you want to accomplish..."
+            placeholder={selectedAgentId ? `Chat with selected agent...` : `Tell Willow what you want to accomplish...`}
             className="flex-1 bg-zinc-900 border-zinc-700 text-zinc-100 placeholder-zinc-500"
             disabled={isLoading}
           />
@@ -371,7 +472,7 @@ export default function WillowChat({ onToggleDebug, showDebugToggle }: WillowCha
           </Button>
         </div>
         <p className="text-xs text-zinc-600 mt-2">
-          Press Enter to send • Examples: "Write a story about Maya and Pip" • "Find Chapter 3"
+          Press Enter to send - Examples: "Write a story about Maya and Pip" - "Find Chapter 3"
         </p>
       </div>
     </div>
