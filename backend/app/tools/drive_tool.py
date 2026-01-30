@@ -436,6 +436,86 @@ class FindFolderTool(BaseTool):
         except Exception as e:
             return f"Error finding folder: {str(e)}"
 
+class UniversalFileReadInput(BaseModel):
+    file_id: str = Field(description="The ID of any file to read from Google Drive - works with Google Docs, .txt, .md, .docx, and more")
+
+
+class UniversalFileReadTool(BaseTool):
+    name: str = "Universal File Reader"
+    description: str = "Reads any file from Google Drive - automatically detects the file type and uses the appropriate method. Works with Google Docs, Word documents (.docx), text files (.txt), markdown (.md), JSON, YAML, and more."
+    args_schema: Type[BaseModel] = UniversalFileReadInput
+
+    def _run(self, file_id: str) -> str:
+        """Read any file by detecting its type and using the appropriate reader."""
+        try:
+            creds = DriveAuth.authenticate()
+            drive_service = build('drive', 'v3', credentials=creds)
+
+            # Get file metadata to determine type
+            file_meta = drive_service.files().get(
+                fileId=file_id,
+                fields="name,mimeType,size",
+                supportsAllDrives=True
+            ).execute()
+
+            file_name = file_meta.get('name', 'Unknown')
+            mime_type = file_meta.get('mimeType', 'unknown')
+
+            # Google Doc - use Docs API
+            if mime_type == 'application/vnd.google-apps.document':
+                return DriveReadTool()._run(file_id)
+
+            # Word document (.docx) - export as text
+            elif mime_type == 'application/vnd.openxmlformats-officedocument.wordprocessingml.document':
+                return WordDocExportTool()._run(file_id)
+
+            # Google Sheets - export as CSV
+            elif mime_type == 'application/vnd.google-apps.spreadsheet':
+                try:
+                    request = drive_service.files().export_media(
+                        fileId=file_id,
+                        mimeType='text/csv'
+                    )
+                    content = request.execute()
+                    text = content.decode('utf-8')
+                    return f"[DOC] Spreadsheet '{file_name}' (exported as CSV):\n\n{text}"
+                except Exception as e:
+                    return f"[ERROR] Could not export spreadsheet: {str(e)}"
+
+            # Plain text files (.txt, .md, .json, .yaml, .py, etc.)
+            elif mime_type.startswith('text/') or file_name.lower().endswith(('.txt', '.md', '.json', '.yaml', '.yml', '.py', '.js', '.ts', '.css', '.html', '.xml', '.csv')):
+                return PlainTextFileReadTool()._run(file_id)
+
+            # PDF - try to export as text (works for Google Docs-converted PDFs)
+            elif mime_type == 'application/pdf':
+                try:
+                    # For PDFs uploaded to Drive, we can't easily extract text without OCR
+                    # But we can provide metadata and suggest conversion
+                    return (
+                        f"[DOC] PDF File: {file_name}\n"
+                        f"[INFO] PDF files require conversion. Consider:\n"
+                        f"  1. Converting to Google Doc in Drive (right-click > Open with > Google Docs)\n"
+                        f"  2. Then reading the converted document\n"
+                        f"File ID: {file_id}"
+                    )
+                except Exception as e:
+                    return f"[ERROR] Could not process PDF: {str(e)}"
+
+            # Default: try as plain text
+            else:
+                try:
+                    return PlainTextFileReadTool()._run(file_id)
+                except Exception:
+                    return (
+                        f"[ERROR] Unsupported file type: {mime_type}\n"
+                        f"File: {file_name}\n"
+                        f"Supported types: Google Docs, Word (.docx), text files (.txt, .md), JSON, YAML"
+                    )
+
+        except Exception as e:
+            return f"[ERROR] Error reading file: {str(e)}"
+
+
 class DocsEditInput(BaseModel):
     doc_id: str = Field(description="The ID of the Google Doc to edit")
     operation: str = Field(description="Operation to perform: 'read', 'append', 'insert', 'replace', or 'clear'")

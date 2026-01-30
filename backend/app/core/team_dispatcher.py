@@ -8,6 +8,7 @@ Tracks progress and handles failures.
 import os
 import logging
 import time
+import random
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Any, Callable
 from datetime import datetime
@@ -19,6 +20,11 @@ from .plan_proposer import ExecutionPlan, PlanStep, PlanStatus
 from .capability_registry import get_capability_registry
 
 logger = logging.getLogger(__name__)
+
+# LLM retry configuration
+LLM_MAX_RETRIES = 3
+LLM_INITIAL_BACKOFF = 2  # seconds
+LLM_BACKOFF_MULTIPLIER = 2  # exponential backoff
 
 
 class DispatchResult(str, Enum):
@@ -279,12 +285,9 @@ class TeamDispatcher:
         context: Optional[str],
         constraints: List[str],
     ) -> str:
-        """Create and run an agent for a step."""
+        """Create and run an agent for a step with retry logic."""
 
         from app.tools import get_registry
-
-        # Create LLM
-        llm = self._create_llm(self.default_model)
 
         # Get tools for role
         tool_registry = get_registry()
@@ -297,32 +300,84 @@ class TeamDispatcher:
         if constraints:
             backstory += f"\n\nConstraints to follow: {', '.join(constraints)}"
 
-        # Create agent
-        agent = Agent(
-            role=step.agent_role,
-            goal=goal,
-            backstory=backstory,
-            allow_delegation=False,
-            tools=tools,
-            verbose=False,
-            llm=llm,
-            max_iter=10,  # Increased from 3 for complex multi-tool tasks
-        )
-
         # Build task description
         task_description = step.description
         if context:
             task_description = f"Context:\n{context}\n\nTask:\n{step.description}"
 
-        # Create and execute task
-        task = Task(
-            description=task_description,
-            agent=agent,
-            expected_output="Complete the assigned task.",
-        )
+        # Retry loop with exponential backoff
+        last_error = None
+        models_to_try = [self.default_model]
 
-        result = agent.execute_task(task)
-        return str(result)
+        # Add fallback models if primary is Gemini
+        if 'gemini' in self.default_model.lower():
+            models_to_try.append("claude-sonnet-4-20250514")  # Fallback to Claude
+
+        for model_name in models_to_try:
+            for attempt in range(LLM_MAX_RETRIES):
+                try:
+                    # Create LLM (fresh instance for each attempt)
+                    llm = self._create_llm(model_name)
+
+                    # Create agent
+                    agent = Agent(
+                        role=step.agent_role,
+                        goal=goal,
+                        backstory=backstory,
+                        allow_delegation=False,
+                        tools=tools,
+                        verbose=False,
+                        llm=llm,
+                        max_iter=10,
+                    )
+
+                    # Create and execute task
+                    task = Task(
+                        description=task_description,
+                        agent=agent,
+                        expected_output="Complete the assigned task.",
+                    )
+
+                    result = agent.execute_task(task)
+
+                    # Validate result - check for None or empty
+                    if result is None or (isinstance(result, str) and not result.strip()):
+                        raise ValueError("Invalid response from LLM call - None or empty")
+
+                    return str(result)
+
+                except Exception as e:
+                    last_error = e
+                    error_str = str(e).lower()
+
+                    # Check if it's a retryable error
+                    retryable = any(term in error_str for term in [
+                        'rate limit', 'quota', 'timeout', '429', '503', '500',
+                        'none or empty', 'invalid response', 'connection'
+                    ])
+
+                    if retryable and attempt < LLM_MAX_RETRIES - 1:
+                        # Calculate backoff with jitter
+                        backoff = LLM_INITIAL_BACKOFF * (LLM_BACKOFF_MULTIPLIER ** attempt)
+                        jitter = random.uniform(0, backoff * 0.1)
+                        wait_time = backoff + jitter
+
+                        logger.warning(
+                            f"Step {step.id} LLM call failed (attempt {attempt + 1}/{LLM_MAX_RETRIES}): {e}. "
+                            f"Retrying in {wait_time:.1f}s with model {model_name}..."
+                        )
+                        time.sleep(wait_time)
+                    elif attempt == LLM_MAX_RETRIES - 1 and model_name != models_to_try[-1]:
+                        logger.warning(
+                            f"Step {step.id} exhausted retries with {model_name}, "
+                            f"trying fallback model..."
+                        )
+                        break  # Try next model
+                    else:
+                        raise
+
+        # If we get here, all retries and fallbacks failed
+        raise last_error or Exception("All LLM retry attempts failed")
 
     def _create_llm(self, model_name: str):
         """Create LLM instance."""
