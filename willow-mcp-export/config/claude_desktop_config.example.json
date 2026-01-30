@@ -1,0 +1,21 @@
+{
+  "mcpServers": {
+    "willow": {
+      "command": "node",
+      "args": ["/full/path/to/Willow-MCP/index.js"],
+      "env": {
+        "SUPABASE_URL": "https://your-project.supabase.co",
+        "SUPABASE_KEY": "your-supabase-service-role-key",
+        "GOOGLE_CREDENTIALS_PATH": "/path/to/google-service-account.json",
+        "DRIVE_FOLDER_INBOX": "your-inbox-folder-id",
+        "DRIVE_FOLDER_IN_DEVELOPMENT": "your-in-development-folder-id",
+        "DRIVE_FOLDER_READY_FOR_REVIEW": "your-ready-for-review-folder-id",
+        "DRIVE_FOLDER_PUBLISHED": "your-published-folder-id",
+        "DRIVE_FOLDER_CHARACTERS": "your-characters-folder-id",
+        "DRIVE_FOLDER_REFERENCE_DOCS": "your-reference-docs-folder-id",
+        "DRIVE_FOLDER_WORLD": "your-world-folder-id",
+        "ANTHROPIC_API_KEY": "sk-ant-your-api-key"
+      }
+    }
+  }
+}
