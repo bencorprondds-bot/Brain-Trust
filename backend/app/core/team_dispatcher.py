@@ -17,6 +17,7 @@ from crewai import Agent, Task, Crew, Process
 
 from .plan_proposer import ExecutionPlan, PlanStep, PlanStatus
 from .capability_registry import get_capability_registry
+from .workflow_templates import get_agent_config, AGENT_CONFIGS
 
 logger = logging.getLogger(__name__)
 
@@ -283,8 +284,29 @@ class TeamDispatcher:
 
         from app.tools import get_registry
 
-        # Create LLM
-        llm = self._create_llm(self.default_model)
+        # Look up agent configuration from workflow_templates
+        # Try agent_id first (specific), then fall back to role-based lookup
+        agent_config = None
+        step_agent_id = getattr(step, 'agent_id', None)  # Backward compatibility
+        if step_agent_id:
+            agent_config = get_agent_config(step_agent_id)
+        if not agent_config:
+            agent_config = get_agent_config(step.agent_role.lower().replace(" ", "_"))
+
+        # Use agent-specific model and temperature, or fall back to defaults
+        if agent_config:
+            model = agent_config.model
+            temperature = agent_config.temperature
+            backstory = agent_config.backstory
+            logger.info(f"Using config for {agent_config.name}: model={model}, temp={temperature}")
+        else:
+            model = self.default_model
+            temperature = 0.7
+            backstory = f"You are the {step.agent_role} in the Legion, a team of AI agents."
+            logger.info(f"No config found for {step.agent_role} (agent_id={step_agent_id}), using defaults")
+
+        # Create LLM with agent-specific settings
+        llm = self._create_llm(model, temperature)
 
         # Get tools for role
         tool_registry = get_registry()
@@ -292,7 +314,6 @@ class TeamDispatcher:
 
         # Build goal/backstory
         goal = step.description
-        backstory = f"You are the {step.agent_role} in the Legion, a team of AI agents."
 
         if constraints:
             backstory += f"\n\nConstraints to follow: {', '.join(constraints)}"
@@ -321,11 +342,26 @@ class TeamDispatcher:
             expected_output="Complete the assigned task.",
         )
 
-        result = agent.execute_task(task)
+        # Execute with retry on empty response
+        max_retries = 2
+        for attempt in range(max_retries + 1):
+            try:
+                result = agent.execute_task(task)
+                if result and str(result).strip():
+                    return str(result)
+                else:
+                    logger.warning(f"Empty response on attempt {attempt + 1}, retrying...")
+                    if attempt == max_retries:
+                        raise ValueError("Invalid response from LLM call - None or empty.")
+            except Exception as e:
+                if attempt == max_retries:
+                    raise
+                logger.warning(f"LLM call failed on attempt {attempt + 1}: {e}, retrying...")
+
         return str(result)
 
-    def _create_llm(self, model_name: str):
-        """Create LLM instance."""
+    def _create_llm(self, model_name: str, temperature: float = 0.7):
+        """Create LLM instance with specified model and temperature."""
         model_lower = model_name.lower()
 
         if 'gemini' in model_lower:
@@ -333,7 +369,7 @@ class TeamDispatcher:
             return ChatGoogleGenerativeAI(
                 model=model_name,
                 google_api_key=os.getenv("GEMINI_API_KEY"),
-                temperature=0.7,
+                temperature=temperature,
             )
 
         elif 'claude' in model_lower or 'sonnet' in model_lower or 'opus' in model_lower:
@@ -349,15 +385,24 @@ class TeamDispatcher:
             return ChatAnthropic(
                 model_name=ant_model,
                 api_key=os.getenv("ANTHROPIC_API_KEY"),
-                temperature=0.7,
+                temperature=temperature,
+            )
+
+        elif 'gpt' in model_lower or 'openai' in model_lower:
+            from langchain_openai import ChatOpenAI
+            return ChatOpenAI(
+                model=model_name,
+                api_key=os.getenv("OPENAI_API_KEY"),
+                temperature=temperature,
             )
 
         else:
+            # Default to Gemini
             from langchain_google_genai import ChatGoogleGenerativeAI
             return ChatGoogleGenerativeAI(
                 model="gemini-2.0-flash",
                 google_api_key=os.getenv("GEMINI_API_KEY"),
-                temperature=0.7,
+                temperature=temperature,
             )
 
 

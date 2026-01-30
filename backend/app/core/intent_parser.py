@@ -142,7 +142,9 @@ class IntentParser:
         ],
         IntentType.STATUS: [
             "status", "progress", "what's happening", "where are we",
-            "update me", "how is"
+            "update me", "how is", "what are we working on", "what's going on",
+            "what is the status", "current status", "project status",
+            "what have we done", "where did we leave off", "recap"
         ],
         IntentType.APPROVE: [
             "approve", "accept", "reject", "sign off", "looks good",
@@ -154,14 +156,16 @@ class IntentParser:
     }
 
     # Agent suggestions based on intent
+    # IMPORTANT: Do LESS not MORE. Only suggest the minimal set of agents.
+    # FIND and STATUS should ONLY use Librarian - no Writers or Editors.
     INTENT_TO_AGENTS = {
-        IntentType.CREATE: ["Writer"],
-        IntentType.EDIT: ["Editor", "Writer"],
-        IntentType.REVIEW: ["Editor"],
-        IntentType.FIND: ["Librarian"],
-        IntentType.ORGANIZE: ["Librarian"],
-        IntentType.ANALYZE: ["Researcher", "Editor"],
-        IntentType.STATUS: [],
+        IntentType.CREATE: ["Writer"],  # Only Writer for creation
+        IntentType.EDIT: ["Editor"],     # Only Editor for editing (not Writer too)
+        IntentType.REVIEW: ["Editor"],   # Only Editor for review
+        IntentType.FIND: ["Librarian"],  # ONLY Librarian - never add Writers/Editors
+        IntentType.ORGANIZE: ["Librarian"],  # ONLY Librarian
+        IntentType.ANALYZE: ["Researcher"],  # Only Researcher
+        IntentType.STATUS: ["Librarian"],  # Librarian for status/file queries
         IntentType.APPROVE: [],
         IntentType.CONFIGURE: [],
     }
@@ -270,14 +274,21 @@ User request: "{user_input}"
 
 Known projects: life_with_ai, coloring_book, diamond_age_primer, idle_game, general
 
+CRITICAL RULES for suggested_agents:
+- Do LESS not MORE. Suggest the MINIMUM agents needed.
+- For "find" or "status" intents: ONLY suggest "Librarian". Never add Writer/Editor.
+- For simple file retrieval: ONLY "Librarian"
+- Only suggest multiple agents if the task genuinely requires different skills.
+- When in doubt, suggest fewer agents.
+
 Respond with JSON only:
 {{
     "intent_type": "create|edit|review|find|organize|analyze|status|approve|configure|unknown",
     "summary": "<one line summary of what user wants>",
     "project": "<project name or 'general'>",
     "target_artifact": "<specific thing being worked on, or null>",
-    "required_capabilities": ["<capability1>", "<capability2>"],
-    "suggested_agents": ["<agent role 1>", "<agent role 2>"],
+    "required_capabilities": ["<capability1>"],
+    "suggested_agents": ["<single agent role if possible>"],
     "constraints": ["<constraint1>"],
     "needs_clarification": true|false,
     "clarification_questions": ["<question if clarification needed>"],

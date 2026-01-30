@@ -256,7 +256,34 @@ async def chat_endpoint(request: ChatRequest):
             logger.info(f"[CHAT] No FETCHED_FILES tag in response")
         
         return {"response": str(response)}
-        
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/session/commit", dependencies=[Security(verify_api_key)])
+async def commit_session_memory():
+    """
+    Commit current session learnings to long-term memory.
+
+    Called by /remember command in Legion CLI.
+    Persists successful patterns, corrections, and preferences.
+
+    Returns:
+        Dict with commit statistics
+    """
+    try:
+        from app.agents.willow import get_willow
+
+        willow = get_willow()
+        result = await willow.commit_session_memory()
+
+        return {
+            "status": "success" if result["success"] else "partial",
+            "committed": result["committed"],
+            "errors": result["errors"],
+        }
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

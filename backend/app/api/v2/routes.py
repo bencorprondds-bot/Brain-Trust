@@ -14,6 +14,15 @@ from app.core.intent_parser import parse_intent
 from app.core.plan_proposer import propose_plan
 from app.core.capability_registry import get_capability_registry
 from app.core.team_dispatcher import dispatch_plan
+from app.core.workflow_templates import (
+    WorkflowType,
+    get_workflow,
+    get_all_workflows,
+    get_workflow_for_ui,
+    get_agent_config,
+    FOLDER_IDS,
+    AGENT_CONFIGS,
+)
 
 router = APIRouter(prefix="/v2", tags=["legion-v3"])
 
@@ -99,6 +108,154 @@ async def approve_plan(request: PlanApprovalRequest) -> IntentResponse:
         response = willow.process(f"modify the plan: {request.modifications}")
     else:
         raise HTTPException(status_code=400, detail=f"Unknown action: {request.action}")
+
+    return IntentResponse(
+        message=response.message,
+        plan=response.plan.to_dict() if response.plan else None,
+        execution_result=response.execution_result.to_dict() if response.execution_result else None,
+        needs_input=response.needs_input,
+        input_options=response.input_options,
+        escalation=response.escalation,
+    )
+
+
+# =============================================================================
+# WORKFLOW TEMPLATES - Predefined Pipelines for UI Buttons
+# =============================================================================
+
+class WorkflowRequest(BaseModel):
+    """Request to execute a predefined workflow."""
+    workflow_type: str  # e.g., "write_story", "edit_story", "full_editorial"
+    target: Optional[str] = None  # e.g., character name, story title
+    auto_execute: bool = False
+
+
+@router.get("/workflows", dependencies=[Security(verify_api_key)])
+async def list_workflows():
+    """
+    Get all available workflow templates for UI buttons.
+
+    Returns workflow options the user can select from.
+    """
+    return {
+        "workflows": get_workflow_for_ui(),
+        "folder_ids": FOLDER_IDS,
+    }
+
+
+@router.get("/workflows/{workflow_type}", dependencies=[Security(verify_api_key)])
+async def get_workflow_detail(workflow_type: str):
+    """
+    Get detailed info about a specific workflow.
+
+    Includes all steps, agents, and their configurations.
+    """
+    try:
+        wf_type = WorkflowType(workflow_type)
+        workflow = get_workflow(wf_type)
+
+        # Get agent configs for each step
+        steps_with_configs = []
+        for step in workflow.steps:
+            agent_config = get_agent_config(step.agent_id)
+            steps_with_configs.append({
+                "order": step.order,
+                "agent_id": step.agent_id,
+                "agent_name": agent_config.name if agent_config else step.agent_id,
+                "model": agent_config.model if agent_config else "unknown",
+                "temperature": agent_config.temperature if agent_config else 0.5,
+                "action": step.action,
+                "description": step.description,
+                "parallel_with": step.parallel_with,
+            })
+
+        return {
+            "id": workflow.id.value,
+            "name": workflow.name,
+            "description": workflow.description,
+            "ui_label": workflow.ui_label,
+            "steps": steps_with_configs,
+            "required_context": workflow.required_context,
+        }
+    except ValueError:
+        raise HTTPException(status_code=404, detail=f"Workflow not found: {workflow_type}")
+
+
+@router.post("/workflows/execute", dependencies=[Security(verify_api_key)])
+async def execute_workflow(request: WorkflowRequest) -> IntentResponse:
+    """
+    Execute a predefined workflow.
+
+    This bypasses LLM-based plan generation and uses the exact template.
+    User selects workflow type via UI button → instant context injection.
+
+    Example:
+        POST /api/v2/workflows/execute
+        {"workflow_type": "write_story", "target": "Arun"}
+    """
+    try:
+        wf_type = WorkflowType(request.workflow_type)
+        workflow = get_workflow(wf_type)
+    except ValueError:
+        raise HTTPException(status_code=400, detail=f"Unknown workflow: {request.workflow_type}")
+
+    willow = get_willow()
+
+    # Build context message for Willow
+    target_info = f" for {request.target}" if request.target else ""
+    context_message = f"[WORKFLOW: {workflow.name}]{target_info}"
+
+    # Instead of parsing intent, we inject the workflow directly
+    # This gives Willow perfect context without guessing
+    from app.core.plan_proposer import ExecutionPlan, PlanStep, PlanStatus
+    from app.core.intent_parser import ProjectScope
+    import uuid
+
+    # Convert workflow template to execution plan
+    plan_steps = []
+    for step in workflow.steps:
+        agent_config = get_agent_config(step.agent_id)
+        plan_steps.append(PlanStep(
+            id=f"step-{step.order}",
+            order=step.order,
+            description=f"{step.description}{target_info}",
+            agent_role=agent_config.role if agent_config else step.agent_id,
+            capability_id=step.action,
+            agent_id=step.agent_id,  # Preserve specific agent config key for lookup
+            depends_on=[f"step-{step.order - 1}"] if step.order > 1 and not step.parallel_with else [],
+        ))
+
+    plan = ExecutionPlan(
+        id=str(uuid.uuid4())[:8],
+        intent_summary=f"{workflow.name}{target_info}",
+        project=ProjectScope.LIFE_WITH_AI,
+        steps=plan_steps,
+        status=PlanStatus.PROPOSED,
+        context_files=workflow.required_context,
+    )
+
+    willow.current_plan = plan
+
+    if request.auto_execute:
+        response = willow.approve_and_execute()
+    else:
+        # Return plan for approval
+        step_list = "\n".join([
+            f"{i+1}. [{s.agent_role}] {s.description}"
+            for i, s in enumerate(plan.steps)
+        ])
+        message = (
+            f"**Workflow: {workflow.name}**{target_info}\n\n"
+            f"Steps:\n{step_list}\n\n"
+            f"Ready to begin when you say 'Go'."
+        )
+        from app.agents.willow import WillowResponse
+        response = WillowResponse(
+            message=message,
+            plan=plan,
+            needs_input=True,
+            input_options=["Begin", "Modify", "Cancel"],
+        )
 
     return IntentResponse(
         message=response.message,

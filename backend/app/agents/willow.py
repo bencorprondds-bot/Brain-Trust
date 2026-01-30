@@ -31,6 +31,9 @@ from ..core.capability_registry import (
     find_agent,
     LEGION_TEAM_ROSTER,
 )
+from ..core.state.memory import LongTermMemory, get_memory
+from ..core.preference_memory import PreferenceMemory, get_preference_memory
+from ..core.context_loader import ContextLoader
 
 logger = logging.getLogger(__name__)
 
@@ -90,7 +93,7 @@ You protect the user's time and attention. Only surface what matters.""",
 
     def __init__(
         self,
-        model: str = "gemini-2.0-flash",  # Default to fast model for most ops
+        model: str = "claude-sonnet-4-20250514",  # Strong reasoning model for orchestration
         auto_execute: bool = False,  # Require approval by default
     ):
         """
@@ -107,9 +110,15 @@ You protect the user's time and attention. Only surface what matters.""",
         self.team_dispatcher = TeamDispatcher()
         self.capability_registry = get_capability_registry()
 
+        # Memory systems
+        self.long_term_memory = get_memory()
+        self.preference_memory = get_preference_memory()
+        self.context_loader = ContextLoader()
+
         # Conversation state
         self.current_plan: Optional[ExecutionPlan] = None
         self.conversation_history: List[Dict[str, str]] = []
+        self.session_learnings: List[Dict[str, Any]] = []  # Track learnings for commit
 
     def process(self, user_input: str) -> WillowResponse:
         """
@@ -124,6 +133,10 @@ You protect the user's time and attention. Only surface what matters.""",
             WillowResponse with Willow's response and any plans/results
         """
         logger.info(f"Willow processing: {user_input[:100]}...")
+
+        # Check for corrections and learn from them
+        if self._is_correction(user_input):
+            self._record_correction(user_input)
 
         # Store in conversation history
         self.conversation_history.append({
@@ -140,10 +153,14 @@ You protect the user's time and attention. Only surface what matters.""",
         if self._is_status_command(user_input):
             return self._handle_status(user_input)
 
-        # Parse intent
+        # Parse intent with memory context
+        memory_context = self._get_memory_context()
+        conversation_context = self._get_conversation_context()
+        full_context = f"{memory_context}\n\n{conversation_context}" if memory_context else conversation_context
+
         intent = self.intent_parser.parse(
             user_input,
-            conversation_context=self._get_conversation_context(),
+            conversation_context=full_context,
         )
 
         logger.info(f"Parsed intent: {intent.intent_type.value} - {intent.summary}")
@@ -229,16 +246,30 @@ You protect the user's time and attention. Only surface what matters.""",
         return any(phrase in input_lower for phrase in approval_phrases) and self.current_plan is not None
 
     def _is_status_command(self, user_input: str) -> bool:
-        """Check if input is a status/meta command."""
+        """Check if input is a status/meta command (NOT an action request)."""
+        input_lower = user_input.lower()
+
+        # If it looks like an action request, NOT a status query
+        action_indicators = [
+            "can you", "please", "could you", "would you",
+            "ask the", "have the", "get the", "tell the",
+            "bring up", "find", "search", "look for", "fetch",
+            "create", "write", "edit", "review",
+        ]
+        if any(phrase in input_lower for phrase in action_indicators):
+            return False
+
         status_phrases = [
             "status", "what's happening", "where are we",
+            "what are we working on", "what are we doing",
+            "what's going on", "current project", "active project",
             "capabilities", "what can you do",
-            # Team-related queries
-            "who are", "who is", "your team", "the team", "agents",
-            "legion", "roster", "editors", "writers", "beta readers",
-            "editorial team", "who can",
+            # Team-related queries - only when genuinely asking about the team
+            "who are the", "who is the", "your team", "the team",
+            "tell me about the legion", "show me the roster",
+            "list the agents", "what agents", "which agents",
+            "who can help with",
         ]
-        input_lower = user_input.lower()
         return any(phrase in input_lower for phrase in status_phrases)
 
     def _handle_approval(self, user_input: str) -> WillowResponse:
@@ -266,6 +297,26 @@ You protect the user's time and attention. Only surface what matters.""",
         """Handle status inquiries."""
         input_lower = user_input.lower()
 
+        # Project status queries - use TELOS context
+        if any(phrase in input_lower for phrase in [
+            "what are we working on", "what are we doing", "current project",
+            "active project", "what's going on", "where did we leave off"
+        ]):
+            try:
+                telos = self.context_loader.load_context()
+                return WillowResponse(
+                    message=f"Here's what we're working on:\n\n{telos.goals}\n\n"
+                            f"**Mission:** {telos.mission[:200]}..."
+                            if len(telos.mission) > 200 else
+                            f"Here's what we're working on:\n\n{telos.goals}\n\n"
+                            f"**Mission:** {telos.mission}",
+                )
+            except FileNotFoundError:
+                return WillowResponse(
+                    message="I don't have context loaded yet. You can set up your goals in ~/.pai/context/GOALS.md",
+                    needs_input=True,
+                )
+
         # Team roster queries
         if any(phrase in input_lower for phrase in ["your team", "the team", "roster", "legion", "who are", "agents you manage"]):
             return self._format_team_overview()
@@ -286,7 +337,8 @@ You protect the user's time and attention. Only surface what matters.""",
             agents = get_agents_by_role("Writer")
             return self._format_agent_list(agents, "Writers")
 
-        if "research" in input_lower or "librarian" in input_lower:
+        if ("research team" in input_lower or "about the librarian" in input_lower or
+            "who is the librarian" in input_lower or "tell me about librarian" in input_lower):
             return self._format_team_detail("Research")
 
         if "technical" in input_lower or "developer" in input_lower:
@@ -448,6 +500,59 @@ You protect the user's time and attention. Only surface what matters.""",
             f"Would you like me to try a different approach?"
         )
 
+    def _is_correction(self, user_input: str) -> bool:
+        """Detect if user is correcting Willow's behavior."""
+        correction_phrases = [
+            "no", "that's not", "that is not", "wrong", "incorrect",
+            "not what i", "not what I", "i didn't", "I didn't",
+            "i don't want", "I don't want", "don't do", "stop",
+            "that's wrong", "you misunderstood", "no i meant",
+            "no I meant", "actually i want", "actually I want",
+            "just the", "only the", "just use", "only use",
+        ]
+        input_lower = user_input.lower()
+        return any(phrase.lower() in input_lower for phrase in correction_phrases)
+
+    def _record_correction(self, user_input: str) -> None:
+        """
+        Record a correction for learning.
+
+        Captures what Willow did wrong so it can improve.
+        """
+        # Get the last assistant response to understand what was corrected
+        last_response = None
+        for msg in reversed(self.conversation_history):
+            if msg.get("role") == "assistant":
+                last_response = msg.get("content", "")[:300]
+                break
+
+        correction_record = {
+            "type": "correction",
+            "content": f"User correction: {user_input}\nPrevious response: {last_response or 'N/A'}",
+            "metadata": {
+                "correction_text": user_input,
+                "corrected_response": last_response,
+                "timestamp": datetime.now().isoformat(),
+            }
+        }
+
+        # Add to session learnings for commit
+        self.session_learnings.append(correction_record)
+
+        # Also record to preference memory as a failed pattern
+        if last_response and self.current_plan:
+            try:
+                self.preference_memory.record_pattern(
+                    intent_category=self.current_plan.intent_summary[:50],
+                    approach={"plan": self.current_plan.to_dict()},
+                    success=False,
+                    feedback=user_input,
+                )
+            except Exception as e:
+                logger.warning(f"Could not record correction pattern: {e}")
+
+        logger.info(f"Recorded correction: {user_input[:50]}...")
+
     def _get_conversation_context(self) -> str:
         """Get recent conversation context for intent parsing."""
         recent = self.conversation_history[-5:]  # Last 5 messages
@@ -455,6 +560,109 @@ You protect the user's time and attention. Only surface what matters.""",
             f"{m['role']}: {m['content'][:200]}"
             for m in recent
         ])
+
+    def _get_memory_context(self, intent_summary: Optional[str] = None) -> str:
+        """
+        Build context from memory systems for better decision-making.
+
+        Includes:
+        - TELOS context (mission, goals, identity)
+        - Relevant past memories
+        - Preference patterns
+        """
+        context_parts = []
+
+        # Load TELOS context
+        try:
+            telos = self.context_loader.load_context()
+            context_parts.append(f"# Mission\n{telos.mission[:500]}")
+            context_parts.append(f"# Current Goals\n{telos.goals[:500]}")
+        except FileNotFoundError:
+            logger.warning("TELOS context not found - run with default context")
+
+        # Get preference context
+        try:
+            pref_context = self.preference_memory.get_preference_context()
+            if pref_context:
+                context_parts.append(pref_context)
+        except Exception as e:
+            logger.warning(f"Could not load preference context: {e}")
+
+        # Recall relevant memories if we have an intent
+        if intent_summary:
+            try:
+                import asyncio
+                loop = asyncio.get_event_loop()
+                memories = loop.run_until_complete(
+                    self.long_term_memory.recall(intent_summary, limit=3)
+                )
+                if memories:
+                    memory_text = "\n".join([
+                        f"- {m['content'][:200]}" for m in memories
+                    ])
+                    context_parts.append(f"# Relevant Past Experiences\n{memory_text}")
+            except Exception as e:
+                logger.warning(f"Could not recall memories: {e}")
+
+        return "\n\n".join(context_parts) if context_parts else ""
+
+    async def commit_session_memory(self) -> Dict[str, Any]:
+        """
+        Commit session learnings to long-term memory.
+
+        Called when user runs /remember or at session end.
+        Stores successful patterns, corrections, and user preferences.
+
+        Returns:
+            Dict with commit statistics
+        """
+        committed_count = 0
+        errors = []
+
+        # Commit session learnings
+        for learning in self.session_learnings:
+            try:
+                await self.long_term_memory.remember(
+                    agent_id="willow",
+                    content=learning.get("content", ""),
+                    memory_type=learning.get("type", "learning"),
+                    metadata=learning.get("metadata", {}),
+                )
+                committed_count += 1
+            except Exception as e:
+                errors.append(str(e))
+                logger.error(f"Failed to commit learning: {e}")
+
+        # Extract patterns from conversation history
+        if len(self.conversation_history) >= 2:
+            # Look for successful completions
+            for i, msg in enumerate(self.conversation_history):
+                if msg.get("role") == "assistant" and i > 0:
+                    prev_msg = self.conversation_history[i - 1]
+                    if prev_msg.get("role") == "user":
+                        # Store interaction pattern
+                        pattern_content = f"User: {prev_msg['content'][:200]}\nResponse: {msg['content'][:200]}"
+                        try:
+                            await self.long_term_memory.remember(
+                                agent_id="willow",
+                                content=pattern_content,
+                                memory_type="experience",
+                                metadata={"session_commit": True},
+                            )
+                            committed_count += 1
+                        except Exception as e:
+                            errors.append(str(e))
+
+        # Clear session learnings after commit
+        self.session_learnings.clear()
+
+        logger.info(f"Committed {committed_count} memories to long-term storage")
+
+        return {
+            "committed": committed_count,
+            "errors": errors,
+            "success": len(errors) == 0,
+        }
 
 
 # Singleton instance

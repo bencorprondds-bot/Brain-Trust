@@ -44,6 +44,7 @@ class PlanStep:
     description: str
     agent_role: str
     capability_id: Optional[str] = None
+    agent_id: Optional[str] = None  # Specific agent config key (e.g., "line_editor")
 
     # Dependencies
     depends_on: List[str] = field(default_factory=list)  # Step IDs
@@ -64,6 +65,7 @@ class PlanStep:
             "description": self.description,
             "agent_role": self.agent_role,
             "capability_id": self.capability_id,
+            "agent_id": self.agent_id,
             "depends_on": self.depends_on,
             "status": self.status,
             "output": self.output,
@@ -198,23 +200,50 @@ class PlanProposer:
         return self._plan_with_templates(intent, plan_id)
 
     def _plan_with_templates(self, intent: ParsedIntent, plan_id: str) -> ExecutionPlan:
-        """Generate plan using predefined templates."""
+        """
+        Generate plan using predefined templates.
+
+        PRINCIPLE: Do LESS not MORE.
+        - FIND/STATUS: ONLY Librarian, no additional agents
+        - Don't auto-add review steps unless explicitly requested
+        - Single agent for simple tasks
+        """
 
         steps = []
         step_order = 1
 
-        # Common pattern: if we need context, start with Librarian
-        if intent.context_needed or intent.intent_type == IntentType.FIND:
+        # FIND and STATUS: ONLY Librarian, nothing else
+        if intent.intent_type in [IntentType.FIND, IntentType.STATUS]:
             steps.append(PlanStep(
                 id=f"step-{step_order}",
                 order=step_order,
-                description=f"Gather context: {', '.join(intent.context_needed) or 'relevant files'}",
+                description=f"{'Find' if intent.intent_type == IntentType.FIND else 'Check status'}: {intent.summary}",
+                agent_role="Librarian",
+                capability_id="find-drive-files",
+            ))
+            # Return immediately - no additional steps for find/status
+            return ExecutionPlan(
+                id=plan_id,
+                intent_summary=intent.summary,
+                project=intent.project,
+                steps=steps,
+                status=PlanStatus.PROPOSED,
+                context_files=intent.context_needed,
+                constraints=intent.constraints,
+            )
+
+        # For other intents, add context gathering only if explicitly needed
+        if intent.context_needed:
+            steps.append(PlanStep(
+                id=f"step-{step_order}",
+                order=step_order,
+                description=f"Gather context: {', '.join(intent.context_needed)}",
                 agent_role="Librarian",
                 capability_id="find-drive-files",
             ))
             step_order += 1
 
-        # Intent-specific steps
+        # Intent-specific steps - minimal agents
         if intent.intent_type == IntentType.CREATE:
             steps.append(PlanStep(
                 id=f"step-{step_order}",
@@ -224,17 +253,8 @@ class PlanProposer:
                 capability_id="write-short-fiction",
                 depends_on=[s.id for s in steps],
             ))
-            step_order += 1
-
-            # Add review step
-            steps.append(PlanStep(
-                id=f"step-{step_order}",
-                order=step_order,
-                description="Review and polish the created content",
-                agent_role="Editor",
-                capability_id="edit-prose",
-                depends_on=[f"step-{step_order - 1}"],
-            ))
+            # NOTE: Removed auto-add of Editor review step
+            # Only add review if user explicitly requests it
 
         elif intent.intent_type == IntentType.EDIT:
             steps.append(PlanStep(
@@ -256,15 +276,14 @@ class PlanProposer:
                 depends_on=[s.id for s in steps],
             ))
 
-        elif intent.intent_type == IntentType.FIND:
-            if not steps:  # If we didn't already add Librarian
-                steps.append(PlanStep(
-                    id=f"step-{step_order}",
-                    order=step_order,
-                    description=f"Find: {intent.summary}",
-                    agent_role="Librarian",
-                    capability_id="find-drive-files",
-                ))
+        elif intent.intent_type == IntentType.ORGANIZE:
+            steps.append(PlanStep(
+                id=f"step-{step_order}",
+                order=step_order,
+                description=f"Organize: {intent.summary}",
+                agent_role="Librarian",
+                capability_id="find-drive-files",
+            ))
 
         elif intent.intent_type == IntentType.ANALYZE:
             steps.append(PlanStep(
@@ -275,13 +294,13 @@ class PlanProposer:
                 depends_on=[s.id for s in steps],
             ))
 
-        # Default if no steps generated
+        # Default if no steps generated - use first suggested agent
         if not steps:
             steps.append(PlanStep(
                 id="step-1",
                 order=1,
                 description=intent.summary,
-                agent_role=intent.suggested_agents[0] if intent.suggested_agents else "Writer",
+                agent_role=intent.suggested_agents[0] if intent.suggested_agents else "Librarian",
             ))
 
         return ExecutionPlan(
@@ -319,8 +338,14 @@ User Intent:
 
 {capability_context}
 
-Create an execution plan with ordered steps. Each step should be assigned to ONE agent.
-Available roles: Librarian (file ops), Writer (creative), Editor (review/polish), Developer (code), Artist (visuals)
+PLANNING RULES:
+1. If user EXPLICITLY mentions multiple agents (Librarian, Writer, Editor), include ALL of them in the plan.
+2. For simple "find" or "status" queries with no other work: Use only Librarian.
+3. For creative workflows (write + edit): Include the full pipeline the user requests.
+4. Each step should do ONE thing. Chain steps with depends_on for sequential work.
+5. Librarian gathers context/creates files FIRST, then Writer drafts, then Editor polishes.
+
+Available roles: Librarian (file ops, search, create docs), Writer (creative drafting), Editor (review/polish), Developer (code), Artist (visuals)
 
 Respond with JSON only:
 {{
@@ -330,19 +355,13 @@ Respond with JSON only:
             "description": "<what this step does>",
             "agent_role": "<role name>",
             "depends_on": []
-        }},
-        {{
-            "order": 2,
-            "description": "<what this step does>",
-            "agent_role": "<role name>",
-            "depends_on": [1]
         }}
     ],
-    "context_files": ["<files to load>"],
+    "context_files": [],
     "requires_approval": true
 }}
 
-Keep plans focused: 2-4 steps typically. Output only valid JSON."""
+Match the complexity of the plan to what the user asked for. Output only valid JSON."""
 
             response = llm.invoke(prompt)
             content = response.content.strip()

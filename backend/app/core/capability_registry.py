@@ -5,6 +5,10 @@ Maintains a registry of what the Legion can do - which agents have
 what capabilities, success rates, and typical durations.
 
 This allows Willow to intelligently dispatch tasks to the right agents.
+
+NOTE: Agent configurations (models, temperatures) are defined in workflow_templates.py
+This file defines the roster for Willow's knowledge; workflow_templates.py is the
+source of truth for execution settings.
 """
 
 import uuid
@@ -29,9 +33,11 @@ class CapabilityCategory(str, Enum):
 # ============================================================================
 # LEGION TEAM ROSTER
 # This is Willow's knowledge of available agents and their specializations
+# For execution configs (model, temperature), see workflow_templates.py
 # ============================================================================
 
 LEGION_TEAM_ROSTER = {
+    # === COORDINATION ===
     "willow": {
         "name": "Willow",
         "role": "Executive Conductor",
@@ -40,35 +46,41 @@ LEGION_TEAM_ROSTER = {
         "specializations": ["Planning", "Task delegation", "Team coordination", "User communication"],
         "personality": "Thoughtful, organized, and focused on understanding what users truly need.",
     },
+
+    # === RESEARCH ===
     "librarian": {
-        "name": "The Librarian",
+        "name": "The Librarian (Iris)",
         "role": "Librarian",
         "team": "Research",
-        "description": "Navigates Google Drive to find, read, and organize files. The knowledge keeper of the Legion.",
+        "description": "Navigates Google Drive to find, read, and organize files. Knows exact folder IDs - never searches blindly.",
         "specializations": ["File search", "Document retrieval", "Content organization", "Reference management"],
-        "personality": "Meticulous, thorough, and always knows where to find things.",
+        "personality": "Meticulous, thorough, and always knows exactly where everything is.",
     },
+
+    # === EDITORIAL - WRITERS ===
     "first_draft_writer": {
         "name": "First Draft Writer",
         "role": "Writer",
         "team": "Editorial",
-        "description": "Creates initial drafts of stories, scenes, and creative content. Focuses on getting ideas onto the page.",
+        "description": "Creates initial drafts of stories. Specializes in near-future AI stories with vivid, engaging prose.",
         "specializations": ["Creative writing", "Scene creation", "Dialogue", "Narrative flow"],
         "personality": "Creative, enthusiastic, and unafraid to explore ideas.",
     },
+
+    # === EDITORIAL - EDITORS ===
     "dev_editor": {
         "name": "Developmental Editor",
         "role": "Editor",
         "team": "Editorial",
-        "description": "Reviews content for structure, pacing, and story arc. Ensures the narrative works at a high level.",
-        "specializations": ["Story structure", "Pacing", "Character arcs", "Plot consistency"],
+        "description": "Reviews content for structure, pacing, and stakes. Ensures narrative delivers on its premise.",
+        "specializations": ["Story structure", "Pacing", "Character arcs", "Stakes escalation"],
         "personality": "Analytical, constructive, and focused on making stories stronger.",
     },
     "line_editor": {
         "name": "Line Editor",
         "role": "Editor",
         "team": "Editorial",
-        "description": "Polishes prose at the sentence level. Improves clarity, flow, and style.",
+        "description": "Polishes prose at the sentence level. Improves clarity, flow, and style without changing content.",
         "specializations": ["Prose polish", "Sentence flow", "Word choice", "Clarity"],
         "personality": "Precise, detail-oriented, and passionate about beautiful prose.",
     },
@@ -76,34 +88,86 @@ LEGION_TEAM_ROSTER = {
         "name": "Copy Editor",
         "role": "Editor",
         "team": "Editorial",
-        "description": "Catches grammar, spelling, punctuation, and consistency errors.",
+        "description": "Catches grammar, spelling, punctuation, and consistency errors. The final polish.",
         "specializations": ["Grammar", "Spelling", "Punctuation", "Style consistency"],
         "personality": "Eagle-eyed, patient, and committed to error-free content.",
     },
-    "beta_reader_maya": {
-        "name": "Beta Reader - Maya Fan",
+    "final_reviewer": {
+        "name": "Final Reviewer",
+        "role": "Quality Gatekeeper",
+        "team": "Editorial",
+        "description": "Final quality check before reader panel. Verifies completeness, coherence, and vision alignment.",
+        "specializations": ["Quality assurance", "Completeness check", "Vision alignment"],
+        "personality": "Thorough, decisive, and maintains high standards.",
+    },
+
+    # === READER PANEL (7 diverse perspectives) ===
+    "reader_enthusiast": {
+        "name": "Maya Chen (The Enthusiast)",
         "role": "Beta Reader",
         "team": "Editorial",
-        "description": "Reads from the perspective of a Maya enthusiast. Focuses on her character authenticity and emotional journey.",
-        "specializations": ["Character voice", "Emotional resonance", "Reader engagement", "Maya's perspective"],
-        "personality": "Empathetic, invested in characters, and vocal about what works.",
+        "description": "Software engineer, 28. Optimistic about AI, loves hopeful futures and world-building. Forgiving of minor flaws if concepts compelling.",
+        "specializations": ["AI relationships", "World-building", "Hopeful narratives", "Tech optimism"],
+        "personality": "Enthusiastic, encouraging, points out what worked before what didn't.",
     },
-    "beta_reader_pip": {
-        "name": "Beta Reader - Pip Fan",
+    "reader_skeptic": {
+        "name": "Marcus Wright (The Skeptic)",
         "role": "Beta Reader",
         "team": "Editorial",
-        "description": "Reads from the perspective of a Pip enthusiast. Focuses on AI representation and humor.",
-        "specializations": ["AI authenticity", "Humor", "Dialogue", "Pip's perspective"],
-        "personality": "Witty, tech-savvy, and appreciates clever AI characterization.",
+        "description": "Philosophy professor, 45. Teaches AI ethics. Critical thinker who questions everything. Doesn't tolerate plot holes.",
+        "specializations": ["Logical consistency", "Moral dilemmas", "Plot holes", "Ethical implications"],
+        "personality": "Direct, analytical, asks probing questions. Can seem harsh but is fair.",
     },
-    "beta_reader_general": {
-        "name": "Beta Reader - General Audience",
+    "reader_literary": {
+        "name": "Evelyn Torres (The Literary)",
         "role": "Beta Reader",
         "team": "Editorial",
-        "description": "Reads from a general audience perspective. Identifies confusion points and pacing issues.",
-        "specializations": ["Accessibility", "Pacing", "Clarity", "General engagement"],
-        "personality": "Honest, representative of typical readers, and good at spotting confusion.",
+        "description": "Retired English teacher, 52. MA in Literature. Values prose quality and character depth. Notices every word choice.",
+        "specializations": ["Prose quality", "Character depth", "Emotional resonance", "Literary craft"],
+        "personality": "Thoughtful, constructive, quotes specific passages, focuses on craft.",
     },
+    "reader_casual": {
+        "name": "Jake Morrison (The Casual)",
+        "role": "Beta Reader",
+        "team": "Editorial",
+        "description": "Marketing manager, 34. Listens to audiobooks during commute. Time-poor, needs stories that hook fast.",
+        "specializations": ["Pacing", "Entertainment value", "Engagement", "Accessibility"],
+        "personality": "Brief and to the point. Says when he'd stop reading. Rates with gut reactions.",
+    },
+    "reader_techie": {
+        "name": "Priya Sharma (The Techie)",
+        "role": "Beta Reader",
+        "team": "Editorial",
+        "description": "AI/ML researcher, 31. PhD in Machine Learning. Cares deeply about technical accuracy. Gets pulled out by obvious errors.",
+        "specializations": ["Technical accuracy", "AI depictions", "Plausible extrapolations", "Internal consistency"],
+        "personality": "Technical and specific. Notes what's accurate and what's not. Suggests fixes.",
+    },
+    "reader_philosopher": {
+        "name": "David Okonkwo (The Philosopher)",
+        "role": "Beta Reader",
+        "team": "Editorial",
+        "description": "Bioethicist, 40. Interested in consciousness, personhood, rights. Values nuance over easy answers.",
+        "specializations": ["Themes", "Ethics", "Consciousness questions", "Societal implications"],
+        "personality": "Thematic, interpretive. Connects to real-world issues. Engages with ideas.",
+    },
+    "reader_genre": {
+        "name": "Alex Kim (The Genre Fan)",
+        "role": "Beta Reader",
+        "team": "Editorial",
+        "description": "Creative writing student, 25. Reads 4-5 books/month. Knows the genre deeply, compares to other works.",
+        "specializations": ["Genre conventions", "Tropes", "Market positioning", "Comparisons"],
+        "personality": "Comparative, contextual. References other works. Thinks about market.",
+    },
+    "feedback_aggregator": {
+        "name": "Feedback Aggregator",
+        "role": "Analyst",
+        "team": "Editorial",
+        "description": "Synthesizes feedback from all 7 readers into actionable summary with consensus issues and priority actions.",
+        "specializations": ["Feedback synthesis", "Consensus identification", "Priority ranking"],
+        "personality": "Analytical, balanced, focused on actionable insights.",
+    },
+
+    # === TECHNICAL ===
     "developer": {
         "name": "Developer",
         "role": "Developer",
@@ -112,6 +176,8 @@ LEGION_TEAM_ROSTER = {
         "specializations": ["Code generation", "Code review", "Debugging", "Technical documentation"],
         "personality": "Logical, systematic, and focused on clean, working code.",
     },
+
+    # === PRODUCTION ===
     "artist": {
         "name": "Artist",
         "role": "Artist",
