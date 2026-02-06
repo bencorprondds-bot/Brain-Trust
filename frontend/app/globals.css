@@ -25,27 +25,27 @@
     --ring: 240 10% 3.9%;
     --radius: 0.5rem;
   }
- 
+
   .dark {
-    --background: 240 10% 3.9%;
-    --foreground: 0 0% 98%;
-    --card: 240 10% 3.9%;
-    --card-foreground: 0 0% 98%;
-    --popover: 240 10% 3.9%;
-    --popover-foreground: 0 0% 98%;
-    --primary: 0 0% 98%;
-    --primary-foreground: 240 5.9% 10%;
-    --secondary: 240 3.7% 15.9%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 240 3.7% 15.9%;
-    --muted-foreground: 240 5% 64.9%;
-    --accent: 240 3.7% 15.9%;
-    --accent-foreground: 0 0% 98%;
+    --background: 225 15% 6%;
+    --foreground: 210 40% 98%;
+    --card: 225 15% 8%;
+    --card-foreground: 210 40% 98%;
+    --popover: 225 15% 8%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 210 40% 98%;
+    --primary-foreground: 225 15% 6%;
+    --secondary: 225 12% 13%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 225 12% 13%;
+    --muted-foreground: 220 9% 46%;
+    --accent: 225 12% 13%;
+    --accent-foreground: 210 40% 98%;
     --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 240 3.7% 15.9%;
-    --input: 240 3.7% 15.9%;
-    --ring: 240 4.9% 83.9%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 225 12% 14%;
+    --input: 225 12% 14%;
+    --ring: 220 70% 55%;
   }
 }
 
@@ -56,4 +56,110 @@
   body {
     @apply bg-background text-foreground;
   }
+}
+
+/* ── Custom scrollbar ── */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: hsl(225 12% 20%);
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(225 12% 28%);
+}
+
+/* ── Custom animations ── */
+@keyframes gradient-shift {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+@keyframes glow-pulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.8; }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes typing-dot {
+  0%, 60%, 100% { opacity: 0.3; transform: translateY(0); }
+  30% { opacity: 1; transform: translateY(-4px); }
+}
+
+@keyframes border-glow {
+  0%, 100% { border-color: hsl(220 70% 50% / 0.2); }
+  50% { border-color: hsl(220 70% 50% / 0.5); }
+}
+
+.animate-gradient-shift {
+  animation: gradient-shift 8s ease infinite;
+  background-size: 200% 200%;
+}
+
+.animate-glow-pulse {
+  animation: glow-pulse 2s ease-in-out infinite;
+}
+
+.animate-shimmer {
+  animation: shimmer 2s linear infinite;
+  background-size: 200% 100%;
+}
+
+.animate-fade-up {
+  animation: fade-up 0.4s ease-out forwards;
+}
+
+.animate-typing-dot-1 { animation: typing-dot 1.4s ease-in-out infinite; }
+.animate-typing-dot-2 { animation: typing-dot 1.4s ease-in-out 0.2s infinite; }
+.animate-typing-dot-3 { animation: typing-dot 1.4s ease-in-out 0.4s infinite; }
+
+.animate-border-glow {
+  animation: border-glow 2s ease-in-out infinite;
+}
+
+/* ── Glass morphism utilities ── */
+.glass {
+  background: hsl(225 15% 8% / 0.7);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+.glass-subtle {
+  background: hsl(225 15% 10% / 0.5);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+/* ── Gradient text utility ── */
+.text-gradient-brand {
+  background: linear-gradient(135deg, hsl(220 70% 55%), hsl(262 83% 65%), hsl(330 80% 60%));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.text-gradient-subtle {
+  background: linear-gradient(135deg, hsl(210 40% 95%), hsl(220 20% 75%));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ── Focus ring for accessibility ── */
+.focus-ring {
+  @apply outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/50 focus-visible:ring-offset-2 focus-visible:ring-offset-[hsl(225,15%,6%)];
 }

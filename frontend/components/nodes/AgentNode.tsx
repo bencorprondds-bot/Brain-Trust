@@ -1,14 +1,9 @@
 import React, { memo } from 'react';
 import { Handle, Position, NodeProps } from 'reactflow';
-import { Bot, Loader2, CheckCircle2, Play, TriangleAlert, GripVertical, Sparkles } from 'lucide-react';
+import { Bot, Loader2, CheckCircle2, TriangleAlert, GripVertical, Sparkles } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-
-// Visual States: "Diamond Age" Aesthetic
-// idle: Low opacity, minimal pulse
-// thinking: High contrast border, rapid pulse, 'scanning' animation
-// done: Green glow, solid border
 
 type AgentStatus = 'idle' | 'thinking' | 'done' | 'error';
 
@@ -19,11 +14,10 @@ interface AgentData {
     currentTool?: string;
     model: string;
     files?: string[];
-    presetId?: string; // Track which preset this node came from
+    presetId?: string;
 }
 
 const AgentNode = ({ data, selected, id }: NodeProps<AgentData>) => {
-    // Handle drag start for removing node (drag to dropdown)
     const handleDragStart = (e: React.DragEvent) => {
         e.dataTransfer.setData('application/json', JSON.stringify({
             type: 'remove-agent',
@@ -33,120 +27,131 @@ const AgentNode = ({ data, selected, id }: NodeProps<AgentData>) => {
         e.dataTransfer.effectAllowed = 'move';
     };
 
+    const glowConfig = {
+        idle: 'from-indigo-500/10 to-violet-500/10 opacity-0 group-hover:opacity-30',
+        thinking: 'from-indigo-500 to-violet-500 opacity-30 blur-md animate-glow-pulse',
+        done: 'from-emerald-500 to-teal-500 opacity-25',
+        error: 'from-red-500 to-orange-500 opacity-30',
+    };
+
+    const borderConfig = {
+        idle: 'border-slate-800/60',
+        thinking: 'border-indigo-500/40 animate-border-glow',
+        done: 'border-emerald-500/30',
+        error: 'border-red-500/30',
+    };
+
     return (
         <div className={cn(
-            "relative group transition-all duration-300",
-            selected && "scale-105"
+            'relative group transition-all duration-300',
+            selected && 'scale-[1.03]'
         )}>
-            {/* Sci-Fi Glow Effect Backdrop */}
+            {/* Glow Backdrop */}
             <div className={cn(
-                "absolute -inset-0.5 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-500 opacity-20 blur transition duration-500",
-                data.status === 'thinking' && "opacity-75 blur-md animate-pulse",
-                data.status === 'done' && "from-green-500 to-emerald-500 opacity-50",
-                data.status === 'error' && "from-red-600 to-orange-600 opacity-75"
+                'absolute -inset-1 rounded-2xl bg-gradient-to-r transition-all duration-500 blur-sm',
+                glowConfig[data.status],
             )} />
 
-            <Card className="relative w-64 border-zinc-800 bg-zinc-950/90 text-zinc-100 backdrop-blur-xl">
-                {/* Input Handle (Top) */}
+            <Card className={cn(
+                'relative w-64 bg-surface-1/95 backdrop-blur-xl text-slate-100 rounded-xl border shadow-elevation-2',
+                borderConfig[data.status],
+            )}>
+                {/* Input Handle */}
                 <Handle
                     type="target"
                     position={Position.Top}
-                    className="!bg-cyan-500 !w-3 !h-3 !border-none"
+                    className="!bg-indigo-500 !w-2.5 !h-2.5 !border-2 !border-surface-0"
                 />
 
                 <CardHeader className="pb-2 pt-3 px-4 flex flex-row items-center justify-between space-y-0">
-                    {/* Drag handle for removing - drag this to dropdown to remove */}
+                    {/* Drag handle */}
                     <div
                         draggable
                         onDragStart={handleDragStart}
                         className={cn(
-                            "absolute -left-1 top-1/2 -translate-y-1/2 p-1 rounded-l",
-                            "opacity-0 group-hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing",
-                            "bg-zinc-800 hover:bg-red-950 hover:text-red-400 border-r border-zinc-700",
-                            "flex items-center justify-center"
+                            'absolute -left-1 top-1/2 -translate-y-1/2 p-1 rounded-l-lg',
+                            'opacity-0 group-hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing',
+                            'bg-surface-3 hover:bg-red-500/10 hover:text-red-400 border-r border-slate-800/40',
+                            'flex items-center justify-center'
                         )}
                         title="Drag to remove"
                     >
                         <GripVertical className="w-3 h-3" />
                     </div>
 
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2.5">
                         <div className={cn(
-                            "p-1.5 rounded-md bg-zinc-900 border border-zinc-700",
-                            data.status === 'thinking' && "border-cyan-500 text-cyan-400"
+                            'p-1.5 rounded-lg border transition-colors',
+                            data.status === 'thinking'
+                                ? 'bg-indigo-500/10 border-indigo-500/30 text-indigo-400'
+                                : 'bg-surface-2 border-slate-800/40 text-slate-400',
                         )}>
-                            <Bot className="w-5 h-5" />
+                            <Bot className="w-4 h-4" />
                         </div>
                         <div>
-                            <CardTitle className="text-sm font-bold font-mono tracking-tight uppercase text-zinc-100">
+                            <CardTitle className="text-sm font-semibold tracking-tight text-slate-100">
                                 {data.name}
                             </CardTitle>
-                            <p className="text-[10px] text-zinc-400 font-mono uppercase truncate max-w-[120px]">
+                            <p className="text-[10px] text-slate-500 truncate max-w-[120px]">
                                 {data.role}
                             </p>
                         </div>
                     </div>
 
-                    {/* Status Indicator */}
-                    <div className="">
+                    {/* Status */}
+                    <div>
                         {data.status === 'thinking' && (
-                            <Loader2 className="w-4 h-4 text-cyan-400 animate-spin" />
+                            <Loader2 className="w-4 h-4 text-indigo-400 animate-spin" />
                         )}
                         {data.status === 'done' && (
                             <CheckCircle2 className="w-4 h-4 text-emerald-400" />
                         )}
                         {data.status === 'error' && (
-                            <TriangleAlert className="w-4 h-4 text-red-500" />
+                            <TriangleAlert className="w-4 h-4 text-red-400" />
                         )}
                         {data.status === 'idle' && (
-                            <div className="w-2 h-2 rounded-full bg-zinc-700" />
+                            <div className="w-2 h-2 rounded-full bg-slate-700" />
                         )}
                     </div>
                 </CardHeader>
 
                 <CardContent className="px-4 pb-3">
-                    {/* Active Tool Display (The "Cyberpunk HUD" detail) */}
                     {data.status === 'thinking' && data.currentTool && (
-                        <div className="mt-2 text-xs font-mono">
-                            <span className="text-zinc-500 mr-2">{'>'} EXECUTING:</span>
-                            <span className="text-cyan-400 animate-pulse">
+                        <div className="mt-2 flex items-center gap-2 text-xs">
+                            <span className="text-slate-500 font-mono">{'>'}</span>
+                            <span className="text-indigo-400 font-mono truncate animate-pulse">
                                 {data.currentTool}
                             </span>
                         </div>
                     )}
 
-                    {/* Model Badge - Shows "Auto" for intelligent routing or specific model if overridden */}
-                    <div className="mt-3 flex justify-between items-center opacity-60">
+                    <div className="mt-3 flex justify-between items-center">
                         {(!data.model || data.model === 'auto') ? (
-                            <Badge variant="outline" className="text-[10px] h-5 border-cyan-800 text-cyan-500 gap-1">
+                            <Badge variant="outline" className="text-[10px] h-5 border-indigo-500/30 text-indigo-400 gap-1">
                                 <Sparkles className="w-2.5 h-2.5" />
                                 Auto
                             </Badge>
                         ) : (
-                            <Badge variant="outline" className="text-[10px] h-5 border-zinc-700 text-zinc-400">
+                            <Badge variant="outline" className="text-[10px] h-5 border-slate-700 text-slate-400">
                                 {data.model}
                             </Badge>
                         )}
-                        <Play className={cn(
-                            "w-3 h-3 text-zinc-600",
-                            data.status === 'thinking' && "text-cyan-500 fill-cyan-500"
-                        )} />
                     </div>
                 </CardContent>
 
-                {/* Output Handle (Bottom) */}
+                {/* Output Handle */}
                 <Handle
                     type="source"
                     position={Position.Bottom}
-                    className="!bg-cyan-500 !w-3 !h-3 !border-none"
+                    className="!bg-indigo-500 !w-2.5 !h-2.5 !border-2 !border-surface-0"
                 />
 
-                {/* File Context List - Floating above */}
+                {/* File Context */}
                 {data.files && data.files.length > 0 && (
-                    <div className="absolute bottom-full mb-3 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1 w-max max-w-[220px] animate-in slide-in-from-bottom-2 fade-in duration-500 pointer-events-none">
-                        <span className="text-[9px] text-cyan-500/70 font-mono uppercase tracking-widest mb-0.5">Context Found</span>
+                    <div className="absolute bottom-full mb-3 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1 w-max max-w-[220px] pointer-events-none">
+                        <span className="text-[9px] text-indigo-400/60 font-mono uppercase tracking-widest mb-0.5">Context</span>
                         {data.files.map((f, i) => (
-                            <div key={i} className="bg-cyan-950/90 backdrop-blur border border-cyan-500/40 px-2 py-1 rounded text-[10px] font-bold text-cyan-100 shadow-[0_0_10px_rgba(6,182,212,0.2)] truncate max-w-full">
+                            <div key={i} className="bg-surface-2/90 backdrop-blur border border-indigo-500/20 px-2.5 py-1 rounded-lg text-[10px] font-medium text-indigo-200 shadow-elevation-1 truncate max-w-full">
                                 {f.split(/[/\\]/).pop()}
                             </div>
                         ))}
